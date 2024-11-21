@@ -1,6 +1,6 @@
 <template>
-    <div class="bg-[#371F76] fixed inset-0 flex items-center justify-center">
-    <p>testando</p>
+    <div class="fixed inset-0 flex items-center justify-center">
+      <Profile/>
   </div>
 </template>
 
