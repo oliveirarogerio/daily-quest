@@ -43,13 +43,7 @@ const displayNotification = (message: string) => {
 };
 
 // Habits
-const habits = ref<Habit[]>([
-  { id: 1, name: 'Morning Meditation', completed: false, streak: 0, timeSpent: 0 },
-  { id: 2, name: 'Exercise', completed: false, streak: 0, timeSpent: 0 },
-  { id: 3, name: 'Read for 30 minutes', completed: false, streak: 0, timeSpent: 0 },
-  { id: 4, name: 'Drink 8 glasses of water', completed: false, streak: 0, timeSpent: 0 },
-  { id: 5, name: 'Practice coding', completed: false, streak: 0, timeSpent: 0 },
-]);
+const habits = ref<Habit[]>([]);
 
 // Timer state
 const selectedHabit = ref<Habit | null>(null);
