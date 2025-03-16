@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <!-- Outer glow -->
+  <circle cx="100" cy="100" r="80" fill="none" stroke="#6a5acd" stroke-width="2" opacity="0.8">
+    <animate attributeName="r" values="80;90;80" dur="2s" repeatCount="indefinite" />
+    <animate attributeName="opacity" values="0.8;0.3;0.8" dur="2s" repeatCount="indefinite" />
+  </circle>
+  
+  <!-- Middle glow -->
+  <circle cx="100" cy="100" r="60" fill="none" stroke="#9370db" stroke-width="3" opacity="0.6">
+    <animate attributeName="r" values="60;70;60" dur="1.5s" repeatCount="indefinite" />
+    <animate attributeName="opacity" values="0.6;0.2;0.6" dur="1.5s" repeatCount="indefinite" />
+  </circle>
+  
+  <!-- Inner glow -->
+  <circle cx="100" cy="100" r="40" fill="none" stroke="#b19cd9" stroke-width="4" opacity="0.4">
+    <animate attributeName="r" values="40;50;40" dur="1s" repeatCount="indefinite" />
+    <animate attributeName="opacity" values="0.4;0.1;0.4" dur="1s" repeatCount="indefinite" />
+  </circle>
+  
+  <!-- Rune symbols -->
+  <g opacity="0.7">
+    <!-- Top rune -->
+    <path d="M100 20 L110 35 L100 50 L90 35 Z" fill="#6a5acd">
+      <animate attributeName="opacity" values="0.7;1;0.7" dur="1.5s" repeatCount="indefinite" />
+    </path>
+    
+    <!-- Right rune -->
+    <path d="M180 100 L165 110 L150 100 L165 90 Z" fill="#6a5acd">
+      <animate attributeName="opacity" values="0.7;1;0.7" dur="1.5s" repeatCount="indefinite" />
+    </path>
+    
+    <!-- Bottom rune -->
+    <path d="M100 180 L90 165 L100 150 L110 165 Z" fill="#6a5acd">
+      <animate attributeName="opacity" values="0.7;1;0.7" dur="1.5s" repeatCount="indefinite" />
+    </path>
+    
+    <!-- Left rune -->
+    <path d="M20 100 L35 90 L50 100 L35 110 Z" fill="#6a5acd">
+      <animate attributeName="opacity" values="0.7;1;0.7" dur="1.5s" repeatCount="indefinite" />
+    </path>
+  </g>
+  
+  <!-- Center text -->
+  <text x="100" y="105" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#ffffff" text-anchor="middle">LEVEL UP</text>
+</svg> 
