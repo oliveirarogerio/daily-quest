@@ -1,8 +1,8 @@
 <script setup lang="ts">
-interface Props {
-  message: string;
+defineProps<{
   show: boolean;
-}
+  message: string;
+}>();
 </script>
 
 <template>
