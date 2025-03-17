@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, defineProps, defineEmits } from 'vue';
 
 interface Props {
   habitName: string;
   timeSpent?: number;
 }
 
-const props = defineProps<Props>();
+defineProps<Props>();
 
 const timerRunning = ref(false);
 const timerMinutes = ref(25);

@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import PomodoroTimer from './PomodoroTimer.vue';
+import { defineProps, defineEmits } from 'vue';
 
 interface Habit {
   id: number;
@@ -14,7 +13,7 @@ interface Props {
   habits: Habit[];
 }
 
-const props = defineProps<Props>();
+defineProps<Props>();
 
 const emit = defineEmits<{
   (e: 'complete', habit: Habit): void;
