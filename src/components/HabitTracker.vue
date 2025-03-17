@@ -529,6 +529,14 @@ onMounted(() => {
   align-items: center;
 }
 
+/* Add margin on mobile screens */
+@media (max-width: 768px) {
+  .habit-tracker {
+    margin-left: 20px;
+    margin-right: 20px;
+  }
+}
+
 /* System window styling */
 .system-window {
   background-color: rgba(26, 26, 42, 0.95);
@@ -603,6 +611,7 @@ onMounted(() => {
   max-height: 70vh;
   overflow-y: auto;
 }
+
 
 /* Notification styling */
 .notification {
@@ -686,6 +695,14 @@ onMounted(() => {
   border: 1px solid rgba(106, 90, 205, 0.3);
   position: relative;
   overflow: hidden;
+}
+
+/* Add margin on mobile screens */
+@media (max-width: 768px) {
+  .player-status {
+    margin-left: 20px;
+    margin-right: 20px;
+  }
 }
 
 .player-status::before {
@@ -843,6 +860,13 @@ onMounted(() => {
   position: relative;
 }
 
+@media (max-width: 768px) {
+  .daily-quests {
+    margin-left: 20px;
+    margin-right: 20px;
+  }
+}
+
 .daily-quests::before {
   content: '';
   position: absolute;
@@ -946,6 +970,13 @@ onMounted(() => {
   z-index: 1;
   max-height: 30vh;
   overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  .habit-list {
+    margin-left: 20px;
+    margin-right: 20px;
+  }
 }
 
 .habit-item {
@@ -1071,6 +1102,13 @@ onMounted(() => {
   z-index: 1;
 }
 
+@media (max-width: 768px) {
+  .add-habit {
+    margin-left: 20px;
+    margin-right: 20px;
+  }
+}
+
 .add-habit input {
   flex: 1;
   padding: 10px 12px;
@@ -1177,64 +1215,45 @@ onMounted(() => {
 
 /* Responsive styles */
 @media (max-width: 768px) {
-  .player-status {
-    flex-direction: column;
-    text-align: center;
-    padding: 12px;
-  }
-
-  .player-rank {
-    margin-right: 0;
-    margin-bottom: 10px;
-  }
-
-  .player-icon {
-    margin-right: 0;
-    margin-bottom: 10px;
+  .system-window {
+    background: none;
+    box-shadow: none;
+    border: none;
+    border-radius: 0;
   }
 
   .system-header {
-    flex-direction: column;
-    text-align: center;
-    padding: 12px;
-  }
-
-  .system-title {
-    margin-bottom: 8px;
-  }
-
-  .system-title::before, .system-title::after {
-    width: 20px;
+    display: none;
   }
 
   .system-content {
-    padding: 15px;
+    padding: 10px;
+    max-height: 100vh;
   }
 
-  .habit-content {
-    flex-direction: row;
-    align-items: center;
-  }
-
-  .habit-right {
-    display: flex;
-    align-items: center;
-  }
-
-  .streak-badge {
+  .habit-tracker {
     margin-left: 0;
-    margin-top: 0;
+    margin-right: 0;
   }
 
-  .notification {
-    width: 80%;
-    left: 10%;
-    right: 10%;
-    top: 10px;
+  .player-status {
+    margin-left: 20px;
+    margin-right: 20px;
   }
 
   .daily-quests {
-    padding: 12px;
+    margin-left: 20px;
+    margin-right: 20px;
+  }
+
+  .habit-list {
+    margin-left: 20px;
+    margin-right: 20px;
+  }
+
+  .add-habit {
+    margin-left: 20px;
+    margin-right: 20px;
   }
 }
 

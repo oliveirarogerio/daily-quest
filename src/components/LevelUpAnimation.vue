@@ -1,18 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-
-const show = ref(false);
-
-const startAnimation = () => {
-  show.value = true;
-  setTimeout(() => {
-    show.value = false;
-  }, 3000);
-};
-
-defineExpose({
-  startAnimation
-});
+interface Props {
+  show: boolean;
+}
 </script>
 
 <template>
@@ -52,12 +41,5 @@ defineExpose({
 @keyframes pulse {
   from { transform: scale(0.95); }
   to { transform: scale(1.05); }
-}
-
-@media (max-width: 768px) {
-  .level-up-animation img {
-    width: 200px;
-    height: 200px;
-  }
 }
 </style>

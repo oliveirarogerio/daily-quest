@@ -1,20 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-
-const show = ref(false);
-const message = ref('');
-
-const display = (msg: string) => {
-  message.value = msg;
-  show.value = true;
-  setTimeout(() => {
-    show.value = false;
-  }, 3000);
-};
-
-defineExpose({
-  display
-});
+interface Props {
+  message: string;
+  show: boolean;
+}
 </script>
 
 <template>

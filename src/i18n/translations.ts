@@ -42,12 +42,12 @@ export const translations = {
   },
   pt: {
     system: {
-      title: 'SISTEMA',
+      title: 'SYSTEM',
       date: 'Data'
     },
     player: {
-      rank: 'RANQUE',
-      level: 'Nível de Caçador',
+      rank: 'RANK',
+      level: 'Hunter Level',
       xp: 'XP'
     },
     quests: {
