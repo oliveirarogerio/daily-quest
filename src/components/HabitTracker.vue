@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import BackgroundAnimation from './BackgroundAnimation.vue';
+import { translations } from '../i18n/translations';
 
 interface Habit {
   id: number;
@@ -33,9 +34,29 @@ const showLevelUpAnimation = ref(false);
 const showNotification = ref(false);
 const notificationMessage = ref('');
 
+// Language detection and management
+const userLanguage = ref(navigator.language.split('-')[0] || 'en');
+const currentTranslations = computed(() => translations[userLanguage.value] || translations.en);
+
+// Translation helper function
+const t = (key: string, params: Record<string, string | number> = {}) => {
+  const keys = key.split('.');
+  let value: any = currentTranslations.value;
+
+  for (const k of keys) {
+    value = value?.[k];
+    if (value === undefined) return key;
+  }
+
+  return Object.entries(params).reduce(
+    (str, [key, value]) => str.replace(`{${key}}`, String(value)),
+    value
+  );
+};
+
 // Show notification
-const displayNotification = (message: string) => {
-  notificationMessage.value = message;
+const displayNotification = (message: string, params: Record<string, string | number> = {}) => {
+  notificationMessage.value = t(message, params);
   showNotification.value = true;
   setTimeout(() => {
     showNotification.value = false;
@@ -158,7 +179,7 @@ const timerCompleted = () => {
     if (selectedHabit.value) {
       const earnedXP = 15; // XP for completing a Pomodoro
       xp.value += earnedXP;
-      displayNotification(`Pomodoro Completed! +${earnedXP} XP`);
+      displayNotification('notifications.pomodoroCompleted', { amount: earnedXP });
 
       // Check for level up
       if (xp.value >= xpToNextLevel.value) {
@@ -166,7 +187,9 @@ const timerCompleted = () => {
       }
     }
   } else {
-    displayNotification(`${timerMode.value === 'shortBreak' ? 'Short' : 'Long'} Break Completed!`);
+    displayNotification('notifications.breakCompleted', {
+      type: timerMode.value === 'shortBreak' ? t('timer.shortBreak') : t('timer.longBreak')
+    });
   }
 };
 
@@ -189,7 +212,7 @@ const addHabit = () => {
       timeSpent: 0
     });
     newHabitName.value = '';
-    displayNotification('New Quest Added!');
+    displayNotification('notifications.newQuest');
   }
 };
 
@@ -205,7 +228,7 @@ const removeHabit = (habitId: number) => {
     }
 
     habits.value.splice(habitIndex, 1);
-    displayNotification(`Quest "${habitName}" Removed!`);
+    displayNotification('notifications.questRemoved', { name: habitName });
   }
 };
 
@@ -220,7 +243,7 @@ const completeHabit = (habit: Habit) => {
     xp.value += earnedXP;
     habit.streak++;
 
-    displayNotification(`+${earnedXP} XP Gained!`);
+    displayNotification('notifications.xpGained', { amount: earnedXP });
 
     // Check for level up
     if (xp.value >= xpToNextLevel.value) {
@@ -232,7 +255,7 @@ const completeHabit = (habit: Habit) => {
     xp.value = Math.max(0, xp.value - lostXP);
     habit.streak = Math.max(0, habit.streak - 1);
 
-    displayNotification(`-${lostXP} XP Lost`);
+    displayNotification('notifications.xpLost', { amount: lostXP });
   }
 };
 
@@ -268,7 +291,7 @@ const resetHabitsIfNewDay = () => {
     // Save to localStorage
     localStorage.setItem('lastResetDate', today);
 
-    displayNotification('Daily Quests Reset!');
+    displayNotification('notifications.dailyReset');
   }
 };
 
@@ -327,8 +350,8 @@ onMounted(() => {
     <!-- System window frame -->
     <div class="system-window">
       <div class="system-header">
-        <div class="system-title">SYSTEM</div>
-        <div class="system-date">{{ new Date().toLocaleDateString() }}</div>
+        <div class="system-title">{{ t('system.title') }}</div>
+        <div class="system-date">{{ new Date().toLocaleDateString(userLanguage) }}</div>
       </div>
 
       <div class="system-content">
@@ -361,21 +384,21 @@ onMounted(() => {
                 :class="{ active: timerMode === 'pomodoro' }"
                 class="mode-button"
               >
-                Pomodoro
+                {{ t('timer.pomodoro') }}
               </button>
               <button
                 @click="setTimerMode('shortBreak')"
                 :class="{ active: timerMode === 'shortBreak' }"
                 class="mode-button"
               >
-                Short Break
+                {{ t('timer.shortBreak') }}
               </button>
               <button
                 @click="setTimerMode('longBreak')"
                 :class="{ active: timerMode === 'longBreak' }"
                 class="mode-button"
               >
-                Long Break
+                {{ t('timer.longBreak') }}
               </button>
             </div>
 
@@ -385,26 +408,26 @@ onMounted(() => {
                 class="control-button start"
                 v-if="!timerRunning"
               >
-                Start
+                {{ t('timer.start') }}
               </button>
               <button
                 @click="pauseTimer"
                 class="control-button pause"
                 v-else
               >
-                Pause
+                {{ t('timer.pause') }}
               </button>
               <button
                 @click="stopTimer"
                 class="control-button stop"
               >
-                Reset
+                {{ t('timer.reset') }}
               </button>
             </div>
 
             <div class="timer-info" v-if="selectedHabit.timeSpent">
               <div class="time-spent">
-                Time spent: {{ formatTimeSpent(selectedHabit.timeSpent) }}
+                {{ t('timer.timeSpent') }}: {{ formatTimeSpent(selectedHabit.timeSpent) }}
               </div>
             </div>
           </div>
@@ -412,7 +435,7 @@ onMounted(() => {
 
         <div class="player-status">
           <div class="player-rank">
-            <div class="rank-label">RANK</div>
+            <div class="rank-label">{{ t('player.rank') }}</div>
             <div class="rank-value">{{ rank }}</div>
           </div>
 
@@ -422,10 +445,10 @@ onMounted(() => {
           </div>
 
           <div class="player-info">
-            <h2>Hunter Level {{ level }}</h2>
+            <h2>{{ t('player.level') }} {{ level }}</h2>
             <div class="xp-bar-container">
               <div class="xp-bar" :style="{ width: xpPercentage + '%' }"></div>
-              <span class="xp-text">{{ xp }} / {{ xpToNextLevel }} XP</span>
+              <span class="xp-text">{{ xp }} / {{ xpToNextLevel }} {{ t('player.xp') }}</span>
             </div>
           </div>
         </div>
@@ -433,7 +456,7 @@ onMounted(() => {
         <div class="daily-quests">
           <div class="quest-header">
             <div class="rune-symbol left"></div>
-            <h3>DAILY QUESTS</h3>
+            <h3>{{ t('quests.title') }}</h3>
             <div class="rune-symbol right"></div>
           </div>
 
@@ -452,14 +475,16 @@ onMounted(() => {
                   </span>
                 </div>
                 <div class="habit-right">
-                  <span class="time-badge" v-if="habit.timeSpent" title="Time spent on this quest">
+                  <span class="time-badge" v-if="habit.timeSpent" :title="t('quests.timeSpent')">
                     {{ formatTimeSpent(habit.timeSpent) }}
                   </span>
-                  <span class="streak-badge" v-if="habit.streak > 0">{{ habit.streak }} 🔥</span>
-                  <button class="timer-button" @click="selectHabitForTimer(habit)" title="Start Timer">
+                  <span class="streak-badge" v-if="habit.streak > 0">
+                    {{ habit.streak }} 🔥 {{ t('quests.streak') }}
+                  </span>
+                  <button class="timer-button" @click="selectHabitForTimer(habit)" :title="t('quests.startTimer')">
                     <span class="timer-icon">⏱️</span>
                   </button>
-                  <button class="delete-button" @click="removeHabit(habit.id)" title="Remove Quest">
+                  <button class="delete-button" @click="removeHabit(habit.id)" :title="t('quests.removeQuest')">
                     <span class="delete-icon">×</span>
                   </button>
                 </div>
@@ -472,12 +497,19 @@ onMounted(() => {
           <input
             type="text"
             v-model="newHabitName"
-            placeholder="Add new quest..."
+            :placeholder="t('quests.addPlaceholder')"
             @keyup.enter="addHabit"
           />
           <button @click="addHabit">
-            <span class="button-text">Add Quest</span>
+            <span class="button-text">{{ t('quests.addButton') }}</span>
           </button>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+          <a href="https://github.com/oliveirarogerio" target="_blank" rel="noopener noreferrer" class="footer-link">
+            {{ t('footer.madeBy') }}
+          </a>
         </div>
       </div>
     </div>
@@ -1099,6 +1131,48 @@ onMounted(() => {
 .button-text {
   position: relative;
   z-index: 1;
+}
+
+/* Footer styling */
+.footer {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid rgba(106, 90, 205, 0.3);
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.footer-link {
+  color: #9370db;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.footer-link:hover {
+  color: #6a5acd;
+  transform: translateY(-2px);
+  text-shadow: 0 0 5px rgba(106, 90, 205, 0.7);
+}
+
+.footer-link::before {
+  font-size: 1rem;
+}
+
+/* Responsive styles for footer */
+@media (max-width: 768px) {
+  .footer {
+    margin-top: 15px;
+    padding-top: 12px;
+  }
+
+  .footer-link {
+    font-size: 0.85rem;
+  }
 }
 
 /* Responsive styles */
