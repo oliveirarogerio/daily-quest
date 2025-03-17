@@ -35,7 +35,7 @@ const showNotification = ref(false);
 const notificationMessage = ref('');
 
 // Language detection and management
-const userLanguage = ref(navigator.language.split('-')[0] || 'en');
+const userLanguage = ref<'en' | 'pt'>(navigator.language.split('-')[0] === 'pt' ? 'pt' : 'en');
 const currentTranslations = computed(() => translations[userLanguage.value] || translations.en);
 
 // Translation helper function
