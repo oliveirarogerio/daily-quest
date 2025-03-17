@@ -9,11 +9,16 @@
       "@/*": ["./src/*"]
     },
     "types": ["node", "vue"],
-    "moduleResolution": "node",
+    "moduleResolution": "Bundler",
     "allowJs": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "target": "ESNext",
+    "module": "ESNext",
+    "lib": ["ESNext", "DOM"],
+    "strict": true,
+    "jsx": "preserve"
   },
 
   "references": [

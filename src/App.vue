@@ -160,51 +160,6 @@ main {
   align-self: center;
 }
 
-footer {
-  text-align: center;
-  padding: 1rem 0;
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.footer-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-}
-
-.footer-line {
-  height: 1px;
-  width: 50px;
-  background: linear-gradient(90deg, transparent, #6a5acd, transparent);
-  margin: 0 10px;
-}
-
-footer p {
-  font-size: 0.9rem;
-  color: #9370db;
-  opacity: 0.6;
-  letter-spacing: 1px;
-  margin: 0;
-}
-
-@media (max-width: 768px) {
-  .content {
-    padding: 1rem;
-  }
-
-  h1 {
-    font-size: 2rem;
-  }
-
-  .subtitle {
-    font-size: 1rem;
-  }
-}
-
 /* Force centering for all children of main */
 main > * {
   margin-left: auto !important;
@@ -239,5 +194,19 @@ main > * {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #9370db;
+}
+
+@media (max-width: 768px) {
+  .content {
+    padding: 1rem;
+  }
+
+  h1 {
+    font-size: 2rem;
+  }
+
+  .subtitle {
+    font-size: 1rem;
+  }
 }
 </style>
