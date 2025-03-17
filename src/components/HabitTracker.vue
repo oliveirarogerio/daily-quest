@@ -548,6 +548,11 @@ onMounted(() => {
   width: 100%;
 }
 
+@media (max-width: 768px) {
+  .system-window  {
+    padding: 30px;
+  }
+}
 .system-window::before {
   content: '';
   position: absolute;
