@@ -1,47 +1,48 @@
-# Daily Quest - Gamified Habit Tracker
+# 🎮 Daily Quest - Transforme suas tarefas em uma aventura!
 
-A gamified habit tracker inspired by Solo Leveling, where you can track your daily habits and level up as you complete them.
+Transforme sua rotina diária em uma jornada épica com o Daily Quest, um aplicativo web que gamifica suas tarefas e hábitos diários.
 
-## Features
+## ✨ Recursos Principais
 
-- **Daily Habits**: Track your daily habits and build streaks
-- **Level System**: Gain XP and level up as you complete habits
-- **Streak Rewards**: Longer streaks give more XP
-- **Solo Leveling Theme**: Dark UI with purple accents inspired by Solo Leveling
-- **Persistent Storage**: Your progress is saved locally
+- **Sistema de Níveis e XP**: Ganhe experiência completando suas tarefas e suba de nível
+- **Ranking de Habilidade**: Do nível E até o lendário S, seu progresso é reconhecido
+- **Pomodoro Timer**: Foque nas suas tarefas com temporizador personalizado
+- **Sistema de Streaks**: Mantenha sua motivação com sequências de dias consecutivos
+- **Acompanhamento de Tempo**: Monitore quanto tempo dedica a cada tarefa
+- **Interface Gamificada**: Design moderno e imersivo inspirado em jogos RPG
 
-## How It Works
+## 🎯 Como Funciona
 
-1. **Complete Daily Quests**: Check off your daily habits to gain XP
-2. **Build Streaks**: Consistently completing habits builds streaks, which give bonus XP
-3. **Level Up**: As you gain XP, you'll level up and see your progress
-4. **Add Custom Quests**: Add your own custom habits to track
+1. Crie suas "quests" diárias (tarefas)
+2. Complete-as para ganhar XP e subir de nível
+3. Use o timer Pomodoro para manter o foco
+4. Acompanhe suas streaks e tempo dedicado
+5. Evolua de iniciante até mestre das quests!
 
-## Technologies Used
+## 🌟 Benefícios
 
-- Vue 3 with Composition API
+- Aumente sua produtividade de forma divertida
+- Mantenha-se motivado com recompensas visuais
+- Organize melhor seu tempo
+- Transforme tarefas monótonas em conquistas
+- Desenvolva hábitos positivos
+
+## 🚀 Tecnologias Utilizadas
+
+- Vue.js 3
 - TypeScript
-- Local Storage for persistence
-- CSS animations and transitions
+- Design Responsivo
+- Animações Interativas
+- Suporte a Múltiplos Idiomas (PT/EN)
 
-## Getting Started
+## 🌐 Como Usar
 
-```bash
-# Install dependencies
-npm install
+Acesse [https://daily-quest-six.vercel.app/](https://daily-quest-six.vercel.app/) e comece sua jornada hoje mesmo!
 
-# Start development server
-npm run dev
+## 🤝 Contribua
 
-# Build for production
-npm run build
-```
+O projeto é open source! Sinta-se à vontade para contribuir com sugestões, correções ou novas funcionalidades.
 
-## Inspiration
+---
 
-This project is inspired by the manhwa/anime "Solo Leveling" (나 혼자만 레벨업), featuring a dark UI with glowing purple elements reminiscent of the hunter system in the series.
-
-## License
-
-MIT
-# daily-quest
+Transforme sua rotina em uma aventura com o Daily Quest! 🎮✨
