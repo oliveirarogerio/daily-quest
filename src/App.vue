@@ -7,6 +7,7 @@ import { ref, onMounted, watch } from 'vue'
 const user = useCurrentUser()
 const isLoading = ref(true)
 const error = ref('')
+const showAuth = ref(false)
 
 onMounted(() => {
   setTimeout(() => {
@@ -34,21 +35,20 @@ watch(user, (newUser) => {
             Loading...
           </div>
           <template v-else>
-            <div v-if="error" class="error">{{ error }}</div>
-            <div v-if="user" class="habit-tracker-container">
+            <div  class="habit-tracker-container">
               <HabitTracker />
             </div>
-            <div class="auth-section">
+            <div v-if="!user" class="auth-section">
+              <p class="auth-prompt">Want to save your progress? <button @click="showAuth = true" class="auth-button">Sign In</button></p>
+            </div>
+            <div v-if="showAuth" class="auth-section">
               <Auth />
             </div>
           </template>
         </div>
       </main>
 
-      <footer class="debug-info">
-        <p>Auth Status: {{ user ? 'Authenticated' : 'Not Authenticated' }}</p>
-        <p>Loading: {{ isLoading }}</p>
-      </footer>
+
     </div>
   </div>
 </template>
@@ -243,6 +243,31 @@ main > * {
   margin-top: 2rem;
   padding-top: 2rem;
   border-top: 1px solid rgba(106, 90, 205, 0.3);
+}
+
+.auth-prompt {
+  color: #9370db;
+  font-size: 1rem;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.auth-button {
+  background: #6a5acd;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.auth-button:hover {
+  background: #9370db;
 }
 
 .loading {
