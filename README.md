@@ -11,7 +11,7 @@ Transforme sua rotina diária em uma jornada épica com o Daily Quest, um aplica
 - **Acompanhamento de Tempo**: Monitore quanto tempo dedica a cada tarefa
 - **Interface Gamificada**: Design moderno e imersivo inspirado em jogos RPG
 
-## 🎯 Como Funciona
+## 🎯 Como Funciona 
 
 1. Crie suas "quests" diárias (tarefas)
 2. Complete-as para ganhar XP e subir de nível

@@ -2,14 +2,34 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import BackgroundAnimation from './BackgroundAnimation.vue';
 import { translations } from '../i18n/translations';
+import { useCollection, useCurrentUser } from 'vuefire'
+import { habitsRef } from '../firebase/config'
+import { addDoc, deleteDoc, doc, updateDoc, type DocumentData } from 'firebase/firestore'
 
 interface Habit {
-  id: number;
+  id: string;
   name: string;
   completed: boolean;
   streak: number;
-  timeSpent?: number; // Time spent in seconds
+  timeSpent?: number;
+  userId: string;
+  createdAt: Date;
 }
+
+type HabitDoc = DocumentData & { id: string };
+
+// Convert Firestore DocumentData to Habit type
+const convertToHabit = (doc: HabitDoc): Habit => {
+  return {
+    id: doc.id,
+    name: doc.name || '',
+    completed: doc.completed || false,
+    streak: doc.streak || 0,
+    timeSpent: doc.timeSpent || 0,
+    userId: doc.userId || '',
+    createdAt: doc.createdAt instanceof Date ? doc.createdAt : new Date(doc.createdAt)
+  };
+};
 
 // Player state
 const level = ref(1);
@@ -63,8 +83,8 @@ const displayNotification = (message: string, params: Record<string, string | nu
   }, 3000);
 };
 
-// Habits
-const habits = ref<Habit[]>([]);
+// Use collection with type
+const habits = useCollection<HabitDoc>(habitsRef, { wait: true });
 
 // Timer state
 const selectedHabit = ref<Habit | null>(null);
@@ -83,7 +103,8 @@ const formattedTime = computed(() => {
 });
 
 // Select habit and show timer
-const selectHabitForTimer = (habit: Habit) => {
+const selectHabitForTimer = (habitDoc: HabitDoc) => {
+  const habit = convertToHabit(habitDoc);
   if (timerRunning.value && selectedHabit.value && selectedHabit.value.id !== habit.id) {
     // If timer is running for another habit, ask for confirmation
     if (!confirm('Timer is running for another task. Switch tasks?')) {
@@ -202,46 +223,43 @@ const closeTimer = () => {
 
 // New habit form
 const newHabitName = ref('');
-const addHabit = () => {
-  if (newHabitName.value.trim()) {
-    habits.value.push({
-      id: Date.now(),
-      name: newHabitName.value.trim(),
-      completed: false,
-      streak: 0,
-      timeSpent: 0
-    });
-    newHabitName.value = '';
-    displayNotification('notifications.newQuest');
-  }
+const addHabit = async () => {
+  if (!user.value || !newHabitName.value.trim()) return
+
+  await addDoc(habitsRef, {
+    name: newHabitName.value,
+    userId: user.value.uid,
+    createdAt: new Date(),
+    completed: false
+  })
+
+  newHabitName.value = ''
+  displayNotification('notifications.newQuest');
 };
 
 // Remove habit
-const removeHabit = (habitId: number) => {
-  const habitIndex = habits.value.findIndex(h => h.id === habitId);
-  if (habitIndex !== -1) {
-    const habitName = habits.value[habitIndex].name;
-
-    // If this habit has the timer open, close it
-    if (selectedHabit.value && selectedHabit.value.id === habitId) {
-      closeTimer();
-    }
-
-    habits.value.splice(habitIndex, 1);
-    displayNotification('notifications.questRemoved', { name: habitName });
-  }
+const deleteHabit = async (habitId: string) => {
+  const habitRef = doc(habitsRef, habitId)
+  await deleteDoc(habitRef)
+  displayNotification('notifications.questRemoved');
 };
 
 // Complete habit and gain XP
-const completeHabit = (habit: Habit) => {
-  // Toggle completed state
-  habit.completed = !habit.completed;
+const toggleHabit = async (habitDoc: HabitDoc) => {
+  const habit = convertToHabit(habitDoc);
+  const habitRef = doc(habitsRef, habit.id);
+  await updateDoc(habitRef, {
+    completed: !habit.completed
+  });
 
   if (habit.completed) {
     // Gain XP based on streak (more streak = more XP)
     const earnedXP = 10 + Math.floor(habit.streak / 3) * 5;
     xp.value += earnedXP;
-    habit.streak++;
+
+    await updateDoc(habitRef, {
+      streak: (habit.streak || 0) + 1
+    });
 
     displayNotification('notifications.xpGained', { amount: earnedXP });
 
@@ -253,7 +271,10 @@ const completeHabit = (habit: Habit) => {
     // Remove XP if unchecking
     const lostXP = 10 + Math.floor((habit.streak - 1) / 3) * 5;
     xp.value = Math.max(0, xp.value - lostXP);
-    habit.streak = Math.max(0, habit.streak - 1);
+
+    await updateDoc(habitRef, {
+      streak: Math.max(0, (habit.streak || 0) - 1)
+    });
 
     displayNotification('notifications.xpLost', { amount: lostXP });
   }
@@ -342,6 +363,8 @@ onMounted(() => {
     }
   };
 });
+
+const user = useCurrentUser()
 </script>
 
 <template>
@@ -467,7 +490,7 @@ onMounted(() => {
                   <input
                     type="checkbox"
                     :checked="habit.completed"
-                    @click="completeHabit(habit)"
+                    @change="toggleHabit(habit as HabitDoc)"
                     class="habit-checkbox"
                   />
                   <span class="habit-name" :class="{ completed: habit.completed }">
@@ -481,10 +504,10 @@ onMounted(() => {
                   <span class="streak-badge" v-if="habit.streak > 0">
                     {{ habit.streak }} 🔥 {{ t('quests.streak') }}
                   </span>
-                  <button class="timer-button" @click="selectHabitForTimer(habit)" :title="t('quests.startTimer')">
+                  <button class="timer-button" @click="selectHabitForTimer(habit as HabitDoc)" :title="t('quests.startTimer')">
                     <span class="timer-icon">⏱️</span>
                   </button>
-                  <button class="delete-button" @click="removeHabit(habit.id)" :title="t('quests.removeQuest')">
+                  <button class="delete-button" @click="deleteHabit(habit.id)" :title="t('quests.removeQuest')">
                     <span class="delete-icon">×</span>
                   </button>
                 </div>

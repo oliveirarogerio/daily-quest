@@ -1,5 +1,22 @@
 <script setup lang="ts">
+import { useCurrentUser } from 'vuefire'
 import HabitTracker from './components/HabitTracker.vue'
+import Auth from './components/Auth.vue'
+import { ref, onMounted, watch } from 'vue'
+
+const user = useCurrentUser()
+const isLoading = ref(true)
+const error = ref('')
+
+onMounted(() => {
+  setTimeout(() => {
+    isLoading.value = false
+  }, 1000)
+})
+
+watch(user, (newUser) => {
+  console.log('User state changed:', newUser ? 'logged in' : 'logged out')
+})
 </script>
 
 <template>
@@ -12,10 +29,26 @@ import HabitTracker from './components/HabitTracker.vue'
       </header>
 
       <main>
-        <HabitTracker />
+        <div class="main-content">
+          <div v-if="isLoading" class="loading">
+            Loading...
+          </div>
+          <template v-else>
+            <div v-if="error" class="error">{{ error }}</div>
+            <div v-if="user" class="habit-tracker-container">
+              <HabitTracker />
+            </div>
+            <div class="auth-section">
+              <Auth />
+            </div>
+          </template>
+        </div>
       </main>
 
-
+      <footer class="debug-info">
+        <p>Auth Status: {{ user ? 'Authenticated' : 'Not Authenticated' }}</p>
+        <p>Loading: {{ isLoading }}</p>
+      </footer>
     </div>
   </div>
 </template>
@@ -196,6 +229,67 @@ main > * {
   background: #9370db;
 }
 
+.main-content {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  align-items: center;
+}
+
+.auth-section {
+  width: 100%;
+  max-width: 400px;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(106, 90, 205, 0.3);
+}
+
+.loading {
+  color: #6a5acd;
+  font-size: 1.2rem;
+  text-align: center;
+  padding: 2rem;
+  background: rgba(106, 90, 205, 0.1);
+  border-radius: 8px;
+  margin: 1rem 0;
+  animation: pulse 1.5s infinite;
+}
+
+.error {
+  color: #ff6b6b;
+  font-size: 1rem;
+  text-align: center;
+  padding: 1rem;
+  background: rgba(255, 107, 107, 0.1);
+  border-radius: 8px;
+  margin: 1rem 0;
+}
+
+.habit-tracker-container {
+  width: 100%;
+  margin-bottom: 2rem;
+}
+
+.debug-info {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.8);
+  color: #6a5acd;
+  padding: 0.5rem;
+  font-size: 0.8rem;
+  text-align: center;
+  z-index: 1000;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
 @media (max-width: 768px) {
   .content {
     padding: 1rem;
@@ -207,6 +301,15 @@ main > * {
 
   .subtitle {
     font-size: 1rem;
+  }
+
+  .main-content {
+    gap: 1rem;
+  }
+
+  .auth-section {
+    margin-top: 1rem;
+    padding-top: 1rem;
   }
 }
 </style>
