@@ -50,7 +50,7 @@ const formatTimeSpent = (seconds: number) => {
             <input
               type="checkbox"
               :checked="habit.completed"
-              @click="emit('complete', habit)"
+              @change="emit('complete', habit)"
               class="habit-checkbox"
             />
             <span class="habit-name" :class="{ completed: habit.completed }">

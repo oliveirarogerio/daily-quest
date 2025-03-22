@@ -5,6 +5,8 @@ import { translations } from '../i18n/translations';
 import { useCollection, useCurrentUser } from 'vuefire'
 import { habitsRef } from '../firebase/config'
 import { addDoc, deleteDoc, doc, updateDoc, type DocumentData } from 'firebase/firestore'
+import AddHabitForm from './AddHabitForm.vue';
+import DailyQuests from './DailyQuests.vue';
 
 interface Habit {
   id: string;
@@ -86,6 +88,17 @@ const displayNotification = (message: string, params: Record<string, string | nu
 // Use collection with type
 const habits = useCollection<HabitDoc>(habitsRef, { wait: true });
 
+// Local habits for non-logged-in users
+const localHabits = ref<Habit[]>([]);
+
+// Combined habits computed property
+const combinedHabits = computed(() => {
+  if (user.value) {
+    return habits.value;
+  }
+  return localHabits.value;
+});
+
 // Timer state
 const selectedHabit = ref<Habit | null>(null);
 const showTimer = ref(false);
@@ -103,8 +116,8 @@ const formattedTime = computed(() => {
 });
 
 // Select habit and show timer
-const selectHabitForTimer = (habitDoc: HabitDoc) => {
-  const habit = convertToHabit(habitDoc);
+const selectHabitForTimer = (habitDoc: HabitDoc | Habit) => {
+  const habit = 'completed' in habitDoc ? habitDoc : convertToHabit(habitDoc);
   if (timerRunning.value && selectedHabit.value && selectedHabit.value.id !== habit.id) {
     // If timer is running for another habit, ask for confirmation
     if (!confirm('Timer is running for another task. Switch tasks?')) {
@@ -158,7 +171,20 @@ const startTimer = () => {
 
     // If in pomodoro mode, track time spent on the habit
     if (timerMode.value === 'pomodoro' && selectedHabit.value) {
-      selectedHabit.value.timeSpent = (selectedHabit.value.timeSpent || 0) + 1;
+      if (user.value) {
+        // Update in Firebase
+        const habitRef = doc(habitsRef, selectedHabit.value.id);
+        updateDoc(habitRef, {
+          timeSpent: (selectedHabit.value.timeSpent || 0) + 1
+        });
+      } else {
+        // Update in localStorage
+        const habitIndex = localHabits.value.findIndex(h => h.id === selectedHabit.value?.id);
+        if (habitIndex !== -1) {
+          localHabits.value[habitIndex].timeSpent = (localHabits.value[habitIndex].timeSpent || 0) + 1;
+          saveLocalHabits();
+        }
+      }
     }
   }, 1000);
 };
@@ -190,6 +216,7 @@ const stopTimer = () => {
 // Timer completed
 const timerCompleted = () => {
   pauseTimer();
+  console.log("Timer completed"); // Debug log
 
   // Play sound or notification
   const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3');
@@ -198,14 +225,42 @@ const timerCompleted = () => {
   if (timerMode.value === 'pomodoro') {
     // Award XP for completing a Pomodoro
     if (selectedHabit.value) {
+      console.log("Selected Habit:", selectedHabit.value); // Debug log
       const earnedXP = 15; // XP for completing a Pomodoro
       xp.value += earnedXP;
+      console.log("XP Earned:", earnedXP, "Total XP:", xp.value); // Debug log
+
+      // Update time spent
+      if (user.value) {
+        // Update in Firebase
+        const habitRef = doc(habitsRef, selectedHabit.value.id);
+        updateDoc(habitRef, {
+          timeSpent: (selectedHabit.value.timeSpent || 0) + 1,
+          completed: true // Ensure the habit is marked as completed
+        }).then(() => {
+          console.log("Habit updated in Firebase"); // Debug log
+        }).catch(error => {
+          console.error("Error updating habit in Firebase:", error); // Debug log
+        });
+      } else {
+        // Update in localStorage
+        const habitIndex = localHabits.value.findIndex(h => h.id === selectedHabit.value?.id);
+        if (habitIndex !== -1) {
+          localHabits.value[habitIndex].timeSpent = (localHabits.value[habitIndex].timeSpent || 0) + 1;
+          localHabits.value[habitIndex].completed = true; // Mark as completed
+          saveLocalHabits();
+          console.log("Habit updated in localStorage"); // Debug log
+        }
+      }
+
       displayNotification('notifications.pomodoroCompleted', { amount: earnedXP });
 
       // Check for level up
       if (xp.value >= xpToNextLevel.value) {
         levelUp();
       }
+    } else {
+      console.warn("No habit selected"); // Debug log
     }
   } else {
     displayNotification('notifications.breakCompleted', {
@@ -223,44 +278,79 @@ const closeTimer = () => {
 
 // New habit form
 const newHabitName = ref('');
-const addHabit = async () => {
-  if (!user.value || !newHabitName.value.trim()) return
+const addHabit = async (name: string) => {
+  if (!name.trim()) return;
 
-  await addDoc(habitsRef, {
-    name: newHabitName.value,
-    userId: user.value.uid,
-    createdAt: new Date(),
-    completed: false
-  })
+  if (user.value) {
+    // Add to Firebase if user is logged in
+    await addDoc(habitsRef, {
+      name: name,
+      userId: user.value.uid,
+      createdAt: new Date(),
+      completed: false,
+      streak: 0
+    });
+  } else {
+    // Add to localStorage if user is not logged in
+    const newHabit: Habit = {
+      id: Date.now().toString(), // Use timestamp as ID
+      name: name,
+      userId: 'local',
+      createdAt: new Date(),
+      completed: false,
+      streak: 0
+    };
+    localHabits.value.push(newHabit);
+    saveLocalHabits();
+  }
 
-  newHabitName.value = ''
   displayNotification('notifications.newQuest');
 };
 
 // Remove habit
 const deleteHabit = async (habitId: string) => {
-  const habitRef = doc(habitsRef, habitId)
-  await deleteDoc(habitRef)
+  if (user.value) {
+    // Delete from Firebase if user is logged in
+    const habitRef = doc(habitsRef, habitId);
+    await deleteDoc(habitRef);
+  } else {
+    // Delete from localStorage if user is not logged in
+    localHabits.value = localHabits.value.filter(h => h.id !== habitId);
+    saveLocalHabits();
+  }
   displayNotification('notifications.questRemoved');
 };
 
 // Complete habit and gain XP
-const toggleHabit = async (habitDoc: HabitDoc) => {
-  const habit = convertToHabit(habitDoc);
-  const habitRef = doc(habitsRef, habit.id);
-  await updateDoc(habitRef, {
-    completed: !habit.completed
-  });
+const toggleHabit = async (habitDoc: HabitDoc | Habit) => {
+  const habit = 'completed' in habitDoc ? habitDoc : convertToHabit(habitDoc);
+  const wasCompleted = habit.completed;
 
-  if (habit.completed) {
+  if (user.value) {
+    // Update in Firebase if user is logged in
+    const habitRef = doc(habitsRef, habit.id);
+    await updateDoc(habitRef, {
+      completed: !wasCompleted,
+      streak: !wasCompleted ? (habit.streak || 0) + 1 : Math.max(0, (habit.streak || 0) - 1)
+    });
+  } else {
+    // Update in localStorage if user is not logged in
+    const habitIndex = localHabits.value.findIndex(h => h.id === habit.id);
+    if (habitIndex !== -1) {
+      localHabits.value[habitIndex].completed = !wasCompleted;
+      if (!wasCompleted) {
+        localHabits.value[habitIndex].streak = (localHabits.value[habitIndex].streak || 0) + 1;
+      } else {
+        localHabits.value[habitIndex].streak = Math.max(0, (localHabits.value[habitIndex].streak || 0) - 1);
+      }
+      saveLocalHabits();
+    }
+  }
+
+  if (!wasCompleted) {
     // Gain XP based on streak (more streak = more XP)
     const earnedXP = 10 + Math.floor(habit.streak / 3) * 5;
     xp.value += earnedXP;
-
-    await updateDoc(habitRef, {
-      streak: (habit.streak || 0) + 1
-    });
-
     displayNotification('notifications.xpGained', { amount: earnedXP });
 
     // Check for level up
@@ -271,11 +361,6 @@ const toggleHabit = async (habitDoc: HabitDoc) => {
     // Remove XP if unchecking
     const lostXP = 10 + Math.floor((habit.streak - 1) / 3) * 5;
     xp.value = Math.max(0, xp.value - lostXP);
-
-    await updateDoc(habitRef, {
-      streak: Math.max(0, (habit.streak || 0) - 1)
-    });
-
     displayNotification('notifications.xpLost', { amount: lostXP });
   }
 };
@@ -300,7 +385,7 @@ const resetHabitsIfNewDay = () => {
   const today = new Date().toDateString();
 
   if (lastResetDate.value !== today) {
-    habits.value.forEach(habit => {
+    combinedHabits.value.forEach(habit => {
       // If habit wasn't completed yesterday, reset streak
       if (!habit.completed) {
         habit.streak = 0;
@@ -330,14 +415,19 @@ const formatTimeSpent = (seconds: number) => {
   }
 };
 
+// Helper function to save local habits
+const saveLocalHabits = () => {
+  localStorage.setItem('localHabits', JSON.stringify(localHabits.value));
+};
+
 // Load data from localStorage
 onMounted(() => {
-  const savedHabits = localStorage.getItem('habits');
+  const savedLocalHabits = localStorage.getItem('localHabits');
   const savedLevel = localStorage.getItem('level');
   const savedXp = localStorage.getItem('xp');
   const savedLastResetDate = localStorage.getItem('lastResetDate');
 
-  if (savedHabits) habits.value = JSON.parse(savedHabits);
+  if (savedLocalHabits) localHabits.value = JSON.parse(savedLocalHabits);
   if (savedLevel) level.value = parseInt(savedLevel);
   if (savedXp) xp.value = parseInt(savedXp);
   if (savedLastResetDate) lastResetDate.value = savedLastResetDate;
@@ -346,8 +436,8 @@ onMounted(() => {
 });
 
 // Save data to localStorage when it changes
-watch([habits, level, xp], () => {
-  localStorage.setItem('habits', JSON.stringify(habits.value));
+watch([localHabits, level, xp], () => {
+  saveLocalHabits();
   localStorage.setItem('level', level.value.toString());
   localStorage.setItem('xp', xp.value.toString());
 }, { deep: true });
@@ -484,13 +574,13 @@ const user = useCurrentUser()
           </div>
 
           <ul class="habit-list">
-            <li v-for="habit in habits" :key="habit.id" class="habit-item">
+            <li v-for="habit in combinedHabits" :key="habit.id" class="habit-item">
               <div class="habit-content">
                 <div class="habit-left">
                   <input
                     type="checkbox"
                     :checked="habit.completed"
-                    @change="toggleHabit(habit as HabitDoc)"
+                    @change="toggleHabit(habit)"
                     class="habit-checkbox"
                   />
                   <span class="habit-name" :class="{ completed: habit.completed }">
@@ -504,7 +594,7 @@ const user = useCurrentUser()
                   <span class="streak-badge" v-if="habit.streak > 0">
                     {{ habit.streak }} 🔥 {{ t('quests.streak') }}
                   </span>
-                  <button class="timer-button" @click="selectHabitForTimer(habit as HabitDoc)" :title="t('quests.startTimer')">
+                  <button class="timer-button" @click="selectHabitForTimer(habit)" :title="t('quests.startTimer')">
                     <span class="timer-icon">⏱️</span>
                   </button>
                   <button class="delete-button" @click="deleteHabit(habit.id)" :title="t('quests.removeQuest')">
