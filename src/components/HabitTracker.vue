@@ -304,6 +304,12 @@ const addHabit = async (name: string) => {
       streak: 0,
       timeSpent: 0 // Initialize timeSpent
     });
+
+    // Award XP for adding a new habit
+    const earnedXP = 5; // Example XP for adding a habit
+    xp.value += earnedXP; // Update XP
+    displayNotification('notifications.habitAdded', { amount: earnedXP });
+
     // Optionally, you can update the localHabits array if needed
     localHabits.value.push({
       id: newHabitRef.id,
@@ -338,6 +344,10 @@ const deleteHabit = async (habitId: string) => {
     // Delete from Firebase if user is logged in
     const habitRef = doc(habitsRef, habitId);
     await deleteDoc(habitRef);
+
+    // Remove all XP when a habit is deleted
+    xp.value = 0; // Reset XP to zero
+    displayNotification('notifications.habitRemoved', { amount: 'all' }); // Notify user
   } else {
     // Delete from localStorage if user is not logged in
     localHabits.value = localHabits.value.filter(h => h.id !== habitId);
@@ -358,6 +368,12 @@ const toggleHabit = async (habitDoc: HabitDoc | Habit) => {
       completed: !wasCompleted,
       streak: !wasCompleted ? (habit.streak || 0) + 1 : Math.max(0, (habit.streak || 0) - 1)
     });
+
+    // Remove all XP if the habit is being marked as incomplete
+    if (wasCompleted) {
+      xp.value = 0; // Reset XP to zero
+      displayNotification('notifications.xpLostAll', { amount: 'all' }); // Notify user
+    }
   } else {
     // Update in localStorage if user is not logged in
     const habitIndex = localHabits.value.findIndex(h => h.id === habit.id);
