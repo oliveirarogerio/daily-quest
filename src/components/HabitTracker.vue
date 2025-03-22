@@ -126,7 +126,7 @@ const selectHabitForTimer = (habitDoc: HabitDoc | Habit) => {
     stopTimer();
   }
 
-  selectedHabit.value = habit;
+  selectedHabit.value = convertToHabit(habit);
   showTimer.value = true;
 
   // Set timer based on mode
@@ -278,6 +278,19 @@ const closeTimer = () => {
 
 // New habit form
 const newHabitName = ref('');
+
+// Wrapper function to handle adding a habit
+const handleAddHabit = (event: KeyboardEvent | MouseEvent) => {
+  if (event instanceof KeyboardEvent && event.key === 'Enter') {
+    addHabit(newHabitName.value);
+    newHabitName.value = ''; // Clear the input after adding
+  } else if (event instanceof MouseEvent) {
+    addHabit(newHabitName.value);
+    newHabitName.value = ''; // Clear the input after adding
+  }
+};
+
+// Add habit
 const addHabit = async (name: string) => {
   if (!name.trim()) return;
 
@@ -611,9 +624,9 @@ const user = useCurrentUser()
             type="text"
             v-model="newHabitName"
             :placeholder="t('quests.addPlaceholder')"
-            @keyup.enter="addHabit"
+            @keyup.enter="handleAddHabit"
           />
-          <button @click="addHabit">
+          <button @click="handleAddHabit">
             <span class="button-text">{{ t('quests.addButton') }}</span>
           </button>
         </div>
