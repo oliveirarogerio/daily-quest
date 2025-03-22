@@ -296,12 +296,23 @@ const addHabit = async (name: string) => {
 
   if (user.value) {
     // Add to Firebase if user is logged in
-    await addDoc(habitsRef, {
+    const newHabitRef = await addDoc(habitsRef, {
       name: name,
       userId: user.value.uid,
       createdAt: new Date(),
       completed: false,
-      streak: 0
+      streak: 0,
+      timeSpent: 0 // Initialize timeSpent
+    });
+    // Optionally, you can update the localHabits array if needed
+    localHabits.value.push({
+      id: newHabitRef.id,
+      name: name,
+      userId: user.value.uid,
+      createdAt: new Date(),
+      completed: false,
+      streak: 0,
+      timeSpent: 0
     });
   } else {
     // Add to localStorage if user is not logged in
@@ -311,7 +322,8 @@ const addHabit = async (name: string) => {
       userId: 'local',
       createdAt: new Date(),
       completed: false,
-      streak: 0
+      streak: 0,
+      timeSpent: 0 // Initialize timeSpent
     };
     localHabits.value.push(newHabit);
     saveLocalHabits();
