@@ -2,10 +2,18 @@
   "name": "Daily Quest",
   "short_name": "DailyQuest",
   "description": "Level up your life, one quest at a time",
-  "start_url": "/",
+  "start_url": "/?source=pwa",
+  "id": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay"],
+  "orientation": "portrait",
   "background_color": "#0a0a14",
   "theme_color": "#6a5acd",
+  "categories": ["productivity", "lifestyle"],
+  "launch_handler": {
+    "client_mode": ["navigate-existing", "auto"]
+  },
   "icons": [
     {
       "src": "/icons/icon-72x72.png",
@@ -46,7 +54,26 @@
     {
       "src": "/icons/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/mobile.png",
+      "sizes": "1170x2532",
+      "type": "image/png",
+      "platform": "narrow",
+      "label": "Daily Quest on Mobile"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Add Quest",
+      "short_name": "Add",
+      "description": "Add a new quest",
+      "url": "/add?source=pwa",
+      "icons": [{ "src": "/icons/add-quest.png", "sizes": "96x96" }]
     }
   ]
 } 

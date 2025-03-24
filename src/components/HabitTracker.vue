@@ -5,8 +5,6 @@ import { translations } from '../i18n/translations';
 import { useCollection, useCurrentUser } from 'vuefire'
 import { habitsRef } from '../firebase/config'
 import { addDoc, deleteDoc, doc, updateDoc, type DocumentData } from 'firebase/firestore'
-import AddHabitForm from './AddHabitForm.vue';
-import DailyQuests from './DailyQuests.vue';
 
 interface Habit {
   id: string;
@@ -16,6 +14,7 @@ interface Habit {
   timeSpent?: number;
   userId: string;
   createdAt: Date;
+  lastEarnedXP?: number;
 }
 
 type HabitDoc = DocumentData & { id: string };
@@ -29,7 +28,8 @@ const convertToHabit = (doc: HabitDoc): Habit => {
     streak: doc.streak || 0,
     timeSpent: doc.timeSpent || 0,
     userId: doc.userId || '',
-    createdAt: doc.createdAt instanceof Date ? doc.createdAt : new Date(doc.createdAt)
+    createdAt: doc.createdAt instanceof Date ? doc.createdAt : new Date(doc.createdAt),
+    lastEarnedXP: doc.lastEarnedXP || undefined
   };
 };
 
@@ -361,48 +361,58 @@ const toggleHabit = async (habitDoc: HabitDoc | Habit) => {
   const habit = 'completed' in habitDoc ? habitDoc : convertToHabit(habitDoc);
   const wasCompleted = habit.completed;
 
+  const updateHabit = async (habitRef: any, completed: boolean, earnedXP: number) => {
+    await updateDoc(habitRef, {
+      completed,
+      streak: completed ? (habit.streak || 0) + 1 : Math.max(0, (habit.streak || 0) - 1),
+      lastEarnedXP: earnedXP // Store the earned XP with the habit
+    });
+  };
+
   if (user.value) {
     // Update in Firebase if user is logged in
     const habitRef = doc(habitsRef, habit.id);
-    await updateDoc(habitRef, {
-      completed: !wasCompleted,
-      streak: !wasCompleted ? (habit.streak || 0) + 1 : Math.max(0, (habit.streak || 0) - 1)
-    });
 
-    // Remove all XP if the habit is being marked as incomplete
-    if (wasCompleted) {
-      xp.value = 0; // Reset XP to zero
-      displayNotification('notifications.xpLostAll', { amount: 'all' }); // Notify user
+    if (!wasCompleted) {
+      // Calculate XP to be earned when checking the habit
+      const earnedXP = 10 + Math.floor(habit.streak / 3) * 5;
+      await updateHabit(habitRef, true, earnedXP);
+      xp.value += earnedXP;
+      displayNotification('notifications.xpGained', { amount: earnedXP });
+    } else {
+      // Get the last earned XP amount and deduct it
+      const lastEarnedXP = habit.lastEarnedXP || 0;
+      await updateHabit(habitRef, false, 0);
+      xp.value = Math.max(0, xp.value - lastEarnedXP);
+      displayNotification('notifications.xpLost', { amount: lastEarnedXP });
     }
   } else {
     // Update in localStorage if user is not logged in
     const habitIndex = localHabits.value.findIndex(h => h.id === habit.id);
     if (habitIndex !== -1) {
-      localHabits.value[habitIndex].completed = !wasCompleted;
       if (!wasCompleted) {
+        // Calculate XP to be earned when checking the habit
+        const earnedXP = 10 + Math.floor(localHabits.value[habitIndex].streak / 3) * 5;
+        localHabits.value[habitIndex].completed = true;
         localHabits.value[habitIndex].streak = (localHabits.value[habitIndex].streak || 0) + 1;
+        localHabits.value[habitIndex].lastEarnedXP = earnedXP;
+        xp.value += earnedXP;
+        displayNotification('notifications.xpGained', { amount: earnedXP });
       } else {
+        // Get the last earned XP amount and deduct it
+        const lastEarnedXP = localHabits.value[habitIndex].lastEarnedXP || 0;
+        localHabits.value[habitIndex].completed = false;
         localHabits.value[habitIndex].streak = Math.max(0, (localHabits.value[habitIndex].streak || 0) - 1);
+        localHabits.value[habitIndex].lastEarnedXP = 0;
+        xp.value = Math.max(0, xp.value - lastEarnedXP);
+        displayNotification('notifications.xpLost', { amount: lastEarnedXP });
       }
       saveLocalHabits();
     }
   }
 
-  if (!wasCompleted) {
-    // Gain XP based on streak (more streak = more XP)
-    const earnedXP = 10 + Math.floor(habit.streak / 3) * 5;
-    xp.value += earnedXP;
-    displayNotification('notifications.xpGained', { amount: earnedXP });
-
-    // Check for level up
-    if (xp.value >= xpToNextLevel.value) {
-      levelUp();
-    }
-  } else {
-    // Remove XP if unchecking
-    const lostXP = 10 + Math.floor((habit.streak - 1) / 3) * 5;
-    xp.value = Math.max(0, xp.value - lostXP);
-    displayNotification('notifications.xpLost', { amount: lostXP });
+  if (xp.value >= xpToNextLevel.value) {
+    levelUp();
   }
 };
 
