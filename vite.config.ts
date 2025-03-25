@@ -12,6 +12,9 @@ export default defineConfig({
     vueDevTools(),
     VitePWA({
       registerType: 'autoUpdate',
+      devOptions: {
+        enabled: true
+      },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
         name: 'Daily Quest',
@@ -20,6 +23,9 @@ export default defineConfig({
         theme_color: '#6a5acd',
         background_color: '#0a0a14',
         display: 'standalone',
+        start_url: '/',
+        scope: '/',
+        orientation: 'portrait',
         icons: [
           {
             src: '/icons/icon-192x192.png',
@@ -30,7 +36,8 @@ export default defineConfig({
           {
             src: '/icons/icon-512x512.png',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any'
           }
         ]
       },
@@ -58,14 +65,11 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
-    },
-  },
-  optimizeDeps: {
-    include: ['firebase/app', 'firebase/auth', 'firebase/firestore']
+    }
   },
   build: {
-    commonjsOptions: {
-      include: [/firebase/]
+    rollupOptions: {
+      external: ['workbox-window']
     }
   }
 })

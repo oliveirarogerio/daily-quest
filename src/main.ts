@@ -14,5 +14,4 @@ app
       VueFireAuth(),
     ],
   })
-
-app.mount('#app')
+  .mount('#app')
