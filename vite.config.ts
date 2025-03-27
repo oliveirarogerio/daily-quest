@@ -1,4 +1,3 @@
-import { fileURLToPath, URL } from 'node:url'
 
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
@@ -57,19 +56,48 @@ export default defineConfig({
                 statuses: [0, 200]
               }
             }
+          },
+          {
+            urlPattern: /^https:\/\/firestore\.googleapis\.com\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'firestore-cache',
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 // 24 hours
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
           }
         ]
-      }
+      },
+      injectRegister: 'auto',
+      strategies: 'generateSW',
+      includeManifestIcons: true,
+      manifestTransforms: [
+        (manifest) => {
+          manifest.screenshots = []
+          // Add both mobile-web-app-capable and apple-mobile-web-app-capable
+          manifest.mobile_web_app_capable = 'yes'
+          manifest.apple_mobile_web_app_capable = 'yes'
+          return { manifest }
+        }
+      ]
     })
   ],
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url))
+
+  server: {
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp'
     }
   },
   build: {
     rollupOptions: {
       external: ['workbox-window']
-    }
+    },
+    target: 'esnext'
   }
 })

@@ -1,115 +1,73 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { useTimer } from '../composables/useTimer';
+import { useI18n } from '../composables/useI18n';
 
-interface Habit {
-  id: number;
-  name: string;
-  completed: boolean;
-  streak: number;
-  timeSpent?: number;
-}
-
-interface Props {
-  show: boolean;
-  selectedHabit: Habit | null;
-  timerRunning: boolean;
-  timerMode: 'pomodoro' | 'shortBreak' | 'longBreak';
-  timerMinutes: number;
-  timerSeconds: number;
-}
-
-const props = defineProps<Props>();
-
-const emit = defineEmits<{
-  (e: 'close'): void;
-  (e: 'start'): void;
-  (e: 'pause'): void;
-  (e: 'stop'): void;
-  (e: 'setMode', mode: 'pomodoro' | 'shortBreak' | 'longBreak'): void;
-}>();
-
-const formattedTime = computed(() => {
-  const minutes = props.timerMinutes.toString().padStart(2, '0');
-  const seconds = props.timerSeconds.toString().padStart(2, '0');
-  return `${minutes}:${seconds}`;
-});
-
-const formatTimeSpent = (seconds: number) => {
-  if (!seconds) return '0m';
-
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  } else {
-    return `${minutes}m`;
-  }
-};
+const { state: timerState, formattedTime, setTimerMode, startTimer, pauseTimer, stopTimer, closeTimer, formatTimeSpent } = useTimer();
+const { t } = useI18n();
 </script>
 
 <template>
-  <div class="timer-modal" v-if="show && selectedHabit">
+  <div class="timer-modal" v-if="timerState.showTimer && timerState.selectedHabit">
     <div class="timer-content">
       <div class="timer-header">
-        <h3>{{ selectedHabit.name }}</h3>
-        <button class="close-button" @click="emit('close')">×</button>
+        <h3>{{ timerState.selectedHabit.name }}</h3>
+        <button class="close-button" @click="closeTimer">×</button>
       </div>
 
-      <div class="timer-display" :class="{ 'timer-running': timerRunning }">
+      <div class="timer-display" :class="{ 'timer-running': timerState.isRunning }">
         {{ formattedTime }}
       </div>
 
       <div class="timer-modes">
         <button
-          @click="emit('setMode', 'pomodoro')"
-          :class="{ active: timerMode === 'pomodoro' }"
+          @click="setTimerMode('pomodoro')"
+          :class="{ active: timerState.mode === 'pomodoro' }"
           class="mode-button"
         >
-          Pomodoro
+          {{ t('timer.pomodoro') }}
         </button>
         <button
-          @click="emit('setMode', 'shortBreak')"
-          :class="{ active: timerMode === 'shortBreak' }"
+          @click="setTimerMode('shortBreak')"
+          :class="{ active: timerState.mode === 'shortBreak' }"
           class="mode-button"
         >
-          Short Break
+          {{ t('timer.shortBreak') }}
         </button>
         <button
-          @click="emit('setMode', 'longBreak')"
-          :class="{ active: timerMode === 'longBreak' }"
+          @click="setTimerMode('longBreak')"
+          :class="{ active: timerState.mode === 'longBreak' }"
           class="mode-button"
         >
-          Long Break
+          {{ t('timer.longBreak') }}
         </button>
       </div>
 
       <div class="timer-controls">
         <button
-          @click="emit('start')"
+          @click="startTimer"
           class="control-button start"
-          v-if="!timerRunning"
+          v-if="!timerState.isRunning"
         >
-          Start
+          {{ t('timer.start') }}
         </button>
         <button
-          @click="emit('pause')"
+          @click="pauseTimer"
           class="control-button pause"
           v-else
         >
-          Pause
+          {{ t('timer.pause') }}
         </button>
         <button
-          @click="emit('stop')"
+          @click="stopTimer"
           class="control-button stop"
         >
-          Reset
+          {{ t('timer.reset') }}
         </button>
       </div>
 
-      <div class="timer-info" v-if="selectedHabit.timeSpent">
+      <div class="timer-info" v-if="timerState.selectedHabit.timeSpent">
         <div class="time-spent">
-          Time spent: {{ formatTimeSpent(selectedHabit.timeSpent) }}
+          {{ t('timer.timeSpent') }}: {{ formatTimeSpent(timerState.selectedHabit.timeSpent) }}
         </div>
       </div>
     </div>

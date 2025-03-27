@@ -7,16 +7,22 @@ import {
   signOut,
   GoogleAuthProvider,
   signInWithPopup,
+  getAuth,
+  UserCredential,
   type AuthError
 } from 'firebase/auth'
-import { auth } from '../firebase/config'
 
+import { doc, setDoc } from 'firebase/firestore'
+import { db } from '../firebase/config'
 const user = useCurrentUser()
 const email = ref('')
+const name = ref('')
 const password = ref('')
 const isRegistering = ref(false)
 const error = ref('')
 const isLoading = ref(false)
+const auth = getAuth()
+
 
 const handleAuth = async () => {
   try {
@@ -26,8 +32,10 @@ const handleAuth = async () => {
     const authFunction = isRegistering.value
       ? createUserWithEmailAndPassword
       : signInWithEmailAndPassword
-
-    await authFunction(auth, email.value, password.value)
+    const result = await authFunction(auth, email.value, password.value)
+    if (isRegistering.value) {
+      await createPlayer(result)
+    }
     resetForm()
   } catch (e) {
     error.value = (e as AuthError).message
@@ -36,15 +44,31 @@ const handleAuth = async () => {
   }
 }
 
+async function createPlayer(result: UserCredential) {
+  const playerRef = doc(db, 'players', result.user.uid)
+  await setDoc(playerRef, {
+    name: name.value,
+    email: result.user.email,
+    createdAt: new Date(),
+    level: 1,
+    xp: 0,
+    rank: "E",
+  })
+}
+
 const handleGoogleSignIn = async () => {
   try {
     isLoading.value = true
     error.value = ''
     const provider = new GoogleAuthProvider()
+    console.log('provider', provider)
+    console.log('auth', auth)
     await signInWithPopup(auth, provider)
+    console.log('handleGoogleSignIn')
     resetForm()
+
   } catch (e) {
-    error.value = (e as AuthError).message
+    console.error('Google Sign-In Error:', e)
   } finally {
     isLoading.value = false
   }
@@ -67,6 +91,16 @@ const handleSignOut = () => signOut(auth)
       <form @submit.prevent="handleAuth">
         <div class="form-group">
           <input
+            v-model="name"
+            type="string"
+            placeholder="Name"
+            required
+            :disabled="isLoading"
+            v-if="isRegistering"
+          />
+        </div>
+        <div class="form-group">
+          <input
             v-model="email"
             type="email"
             placeholder="Email"
@@ -85,6 +119,8 @@ const handleSignOut = () => signOut(auth)
             minlength="6"
           />
         </div>
+
+
 
         <p v-if="error" class="error" role="alert">{{ error }}</p>
 

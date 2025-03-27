@@ -3,7 +3,7 @@ import './assets/main.css'
 import { createApp } from 'vue'
 import { VueFire, VueFireAuth } from 'vuefire'
 import App from './App.vue'
-import { firebaseApp } from './firebase/config'
+import { app as firebaseApp } from './firebase/config'
 
 const app = createApp(App)
 

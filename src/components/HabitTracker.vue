@@ -1,418 +1,78 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import BackgroundAnimation from './BackgroundAnimation.vue';
-import { translations } from '../i18n/translations';
-import { useCollection, useCurrentUser } from 'vuefire'
-import { habitsRef } from '../firebase/config'
-import { addDoc, deleteDoc, doc, updateDoc, type DocumentData } from 'firebase/firestore'
+import { useHabits } from '../composables/useHabits';
+import { usePlayer } from '../composables/usePlayer';
+import { useTimer } from '../composables/useTimer';
+import { useNotification } from '../composables/useNotification';
+import { useI18n } from '../composables/useI18n';
+import type { Habit } from '../types/habit';
 
-interface Habit {
-  id: string;
-  name: string;
-  completed: boolean;
-  streak: number;
-  timeSpent?: number;
-  userId: string;
-  createdAt: Date;
-  lastEarnedXP?: number;
-}
+// Core functionality
+const {
+  habits,
+  newHabitName,
+  addHabit,
+  deleteHabit,
+  toggleHabitCompletion,
+  formatTimeSpent,
+  resetDailyHabits,
+  updateHabit
+} = useHabits();
 
-type HabitDoc = DocumentData & { id: string };
+const {
+  level,
+  xp,
+  xpToNextLevel,
+  xpPercentage,
+  rank,
+  addXP,
+  removeXP,
+  loadPlayerState,
+  showLevelUpAnimation
+} = usePlayer();
 
-// Convert Firestore DocumentData to Habit type
-const convertToHabit = (doc: HabitDoc): Habit => {
-  return {
-    id: doc.id,
-    name: doc.name || '',
-    completed: doc.completed || false,
-    streak: doc.streak || 0,
-    timeSpent: doc.timeSpent || 0,
-    userId: doc.userId || '',
-    createdAt: doc.createdAt instanceof Date ? doc.createdAt : new Date(doc.createdAt),
-    lastEarnedXP: doc.lastEarnedXP || undefined
-  };
-};
-
-// Player state
-const level = ref(1);
-const xp = ref(0);
-const xpToNextLevel = computed(() => level.value * 100);
-const xpPercentage = computed(() => (xp.value / xpToNextLevel.value) * 100);
-
-// Rank calculation based on level
-const rank = computed(() => {
-  if (level.value >= 50) return 'S';
-  if (level.value >= 40) return 'A';
-  if (level.value >= 30) return 'B';
-  if (level.value >= 20) return 'C';
-  if (level.value >= 10) return 'D';
-  return 'E';
-});
-
-// Level up animation
-const showLevelUpAnimation = ref(false);
-
-// Notification animation
-const showNotification = ref(false);
-const notificationMessage = ref('');
-
-// Language detection and management
-const userLanguage = ref<'en' | 'pt'>(navigator.language.split('-')[0] === 'pt' ? 'pt' : 'en');
-const currentTranslations = computed(() => translations[userLanguage.value] || translations.en);
-
-// Translation helper function
-const t = (key: string, params: Record<string, string | number> = {}) => {
-  const keys = key.split('.');
-  let value: any = currentTranslations.value;
-
-  for (const k of keys) {
-    value = value?.[k];
-    if (value === undefined) return key;
-  }
-
-  return Object.entries(params).reduce(
-    (str, [key, value]) => str.replace(`{${key}}`, String(value)),
-    value
-  );
-};
-
-// Show notification
-const displayNotification = (message: string, params: Record<string, string | number> = {}) => {
-  notificationMessage.value = t(message, params);
-  showNotification.value = true;
-  setTimeout(() => {
-    showNotification.value = false;
-  }, 3000);
-};
-
-// Use collection with type
-const habits = useCollection<HabitDoc>(habitsRef, { wait: true });
-
-// Local habits for non-logged-in users
-const localHabits = ref<Habit[]>([]);
-
-// Combined habits computed property
-const combinedHabits = computed(() => {
-  if (user.value) {
-    return habits.value;
-  }
-  return localHabits.value;
-});
+const { state: notificationState, displayNotification } = useNotification();
+const { userLanguage, t } = useI18n();
 
 // Timer state
-const selectedHabit = ref<Habit | null>(null);
-const showTimer = ref(false);
-const timerRunning = ref(false);
-const timerSeconds = ref(0);
-const timerMinutes = ref(25); // Default Pomodoro time
-const timerInterval = ref<number | null>(null);
-const timerMode = ref<'pomodoro' | 'shortBreak' | 'longBreak'>('pomodoro');
-
-// Format time as MM:SS
-const formattedTime = computed(() => {
-  const minutes = timerMinutes.value.toString().padStart(2, '0');
-  const seconds = timerSeconds.value.toString().padStart(2, '0');
-  return `${minutes}:${seconds}`;
-});
-
-// Select habit and show timer
-const selectHabitForTimer = (habitDoc: HabitDoc | Habit) => {
-  const habit = 'completed' in habitDoc ? habitDoc : convertToHabit(habitDoc);
-  if (timerRunning.value && selectedHabit.value && selectedHabit.value.id !== habit.id) {
-    // If timer is running for another habit, ask for confirmation
-    if (!confirm('Timer is running for another task. Switch tasks?')) {
-      return;
-    }
-    stopTimer();
-  }
-
-  selectedHabit.value = convertToHabit(habit);
-  showTimer.value = true;
-
-  // Set timer based on mode
-  setTimerMode('pomodoro');
-};
-
-// Set timer mode (Pomodoro, short break, long break)
-const setTimerMode = (mode: 'pomodoro' | 'shortBreak' | 'longBreak') => {
-  stopTimer();
-  timerMode.value = mode;
-
-  switch (mode) {
-    case 'pomodoro':
-      timerMinutes.value = 25;
-      break;
-    case 'shortBreak':
-      timerMinutes.value = 5;
-      break;
-    case 'longBreak':
-      timerMinutes.value = 15;
-      break;
-  }
-
-  timerSeconds.value = 0;
-};
-
-// Start timer
-const startTimer = () => {
-  if (timerRunning.value) return;
-
-  timerRunning.value = true;
-  timerInterval.value = window.setInterval(() => {
-    if (timerSeconds.value > 0) {
-      timerSeconds.value--;
-    } else if (timerMinutes.value > 0) {
-      timerMinutes.value--;
-      timerSeconds.value = 59;
-    } else {
-      // Timer completed
-      timerCompleted();
-    }
-
-    // If in pomodoro mode, track time spent on the habit
-    if (timerMode.value === 'pomodoro' && selectedHabit.value) {
-      if (user.value) {
-        // Update in Firebase
-        const habitRef = doc(habitsRef, selectedHabit.value.id);
-        updateDoc(habitRef, {
-          timeSpent: (selectedHabit.value.timeSpent || 0) + 1
-        });
-      } else {
-        // Update in localStorage
-        const habitIndex = localHabits.value.findIndex(h => h.id === selectedHabit.value?.id);
-        if (habitIndex !== -1) {
-          localHabits.value[habitIndex].timeSpent = (localHabits.value[habitIndex].timeSpent || 0) + 1;
-          saveLocalHabits();
-        }
-      }
-    }
-  }, 1000);
-};
-
-// Pause timer
-const pauseTimer = () => {
-  if (!timerRunning.value) return;
-
-  timerRunning.value = false;
-  if (timerInterval.value) {
-    clearInterval(timerInterval.value);
-    timerInterval.value = null;
-  }
-};
-
-// Stop timer
-const stopTimer = () => {
-  pauseTimer();
-  if (timerMode.value === 'pomodoro') {
-    timerMinutes.value = 25;
-  } else if (timerMode.value === 'shortBreak') {
-    timerMinutes.value = 5;
-  } else {
-    timerMinutes.value = 15;
-  }
-  timerSeconds.value = 0;
-};
-
-// Timer completed
-const timerCompleted = () => {
-  pauseTimer();
-  console.log("Timer completed"); // Debug log
-
-  // Play sound or notification
-  const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3');
-  audio.play();
-
-  if (timerMode.value === 'pomodoro') {
-    // Award XP for completing a Pomodoro
-    if (selectedHabit.value) {
-      console.log("Selected Habit:", selectedHabit.value); // Debug log
-      const earnedXP = 15; // XP for completing a Pomodoro
-      xp.value += earnedXP;
-      console.log("XP Earned:", earnedXP, "Total XP:", xp.value); // Debug log
-
-      // Update time spent
-      if (user.value) {
-        // Update in Firebase
-        const habitRef = doc(habitsRef, selectedHabit.value.id);
-        updateDoc(habitRef, {
-          timeSpent: (selectedHabit.value.timeSpent || 0) + 1,
-          completed: true // Ensure the habit is marked as completed
-        }).then(() => {
-          console.log("Habit updated in Firebase"); // Debug log
-        }).catch(error => {
-          console.error("Error updating habit in Firebase:", error); // Debug log
-        });
-      } else {
-        // Update in localStorage
-        const habitIndex = localHabits.value.findIndex(h => h.id === selectedHabit.value?.id);
-        if (habitIndex !== -1) {
-          localHabits.value[habitIndex].timeSpent = (localHabits.value[habitIndex].timeSpent || 0) + 1;
-          localHabits.value[habitIndex].completed = true; // Mark as completed
-          saveLocalHabits();
-          console.log("Habit updated in localStorage"); // Debug log
-        }
-      }
-
-      displayNotification('notifications.pomodoroCompleted', { amount: earnedXP });
-
-      // Check for level up
-      if (xp.value >= xpToNextLevel.value) {
-        levelUp();
-      }
-    } else {
-      console.warn("No habit selected"); // Debug log
-    }
-  } else {
-    displayNotification('notifications.breakCompleted', {
-      type: timerMode.value === 'shortBreak' ? t('timer.shortBreak') : t('timer.longBreak')
-    });
-  }
-};
-
-// Close timer
-const closeTimer = () => {
-  stopTimer();
-  showTimer.value = false;
-  selectedHabit.value = null;
-};
-
-// New habit form
-const newHabitName = ref('');
+const {
+  state: timerState,
+  setTimerMode,
+  startTimer,
+  pauseTimer,
+  stopTimer,
+  selectHabit: selectHabitForTimer,
+  closeTimer,
+  setOnTimerCompleted
+} = useTimer();
 
 // Wrapper function to handle adding a habit
-const handleAddHabit = (event: KeyboardEvent | MouseEvent) => {
-  if (event instanceof KeyboardEvent && event.key === 'Enter') {
-    addHabit(newHabitName.value);
-    newHabitName.value = ''; // Clear the input after adding
-  } else if (event instanceof MouseEvent) {
-    addHabit(newHabitName.value);
-    newHabitName.value = ''; // Clear the input after adding
-  }
+const handleAddHabit = async () => {
+  if (!newHabitName.value.trim()) return;
+
+  await addHabit(newHabitName.value);
+  const earnedXP = 5; // XP for adding a new habit
+  addXP(earnedXP);
+  displayNotification(t('notifications.habitAdded', { amount: earnedXP }));
 };
 
-// Add habit
-const addHabit = async (name: string) => {
-  if (!name.trim()) return;
-
-  if (user.value) {
-    // Add to Firebase if user is logged in
-    const newHabitRef = await addDoc(habitsRef, {
-      name: name,
-      userId: user.value.uid,
-      createdAt: new Date(),
-      completed: false,
-      streak: 0,
-      timeSpent: 0 // Initialize timeSpent
-    });
-
-    // Award XP for adding a new habit
-    const earnedXP = 5; // Example XP for adding a habit
-    xp.value += earnedXP; // Update XP
-    displayNotification('notifications.habitAdded', { amount: earnedXP });
-
-    // Optionally, you can update the localHabits array if needed
-    localHabits.value.push({
-      id: newHabitRef.id,
-      name: name,
-      userId: user.value.uid,
-      createdAt: new Date(),
-      completed: false,
-      streak: 0,
-      timeSpent: 0
-    });
-  } else {
-    // Add to localStorage if user is not logged in
-    const newHabit: Habit = {
-      id: Date.now().toString(), // Use timestamp as ID
-      name: name,
-      userId: 'local',
-      createdAt: new Date(),
-      completed: false,
-      streak: 0,
-      timeSpent: 0 // Initialize timeSpent
-    };
-    localHabits.value.push(newHabit);
-    saveLocalHabits();
-  }
-
-  displayNotification('notifications.newQuest');
-};
-
-// Remove habit
-const deleteHabit = async (habitId: string) => {
-  if (user.value) {
-    // Delete from Firebase if user is logged in
-    const habitRef = doc(habitsRef, habitId);
-    await deleteDoc(habitRef);
-
-    // Remove all XP when a habit is deleted
-    xp.value = 0; // Reset XP to zero
-    displayNotification('notifications.habitRemoved', { amount: 'all' }); // Notify user
-  } else {
-    // Delete from localStorage if user is not logged in
-    localHabits.value = localHabits.value.filter(h => h.id !== habitId);
-    saveLocalHabits();
-  }
-  displayNotification('notifications.questRemoved');
+// Handle deleting a habit
+const handleDeleteHabit = async (habitId: string) => {
+  await deleteHabit(habitId);
+  displayNotification(t('notifications.questRemoved'));
 };
 
 // Complete habit and gain XP
-const toggleHabit = async (habitDoc: HabitDoc | Habit) => {
-  const habit = 'completed' in habitDoc ? habitDoc : convertToHabit(habitDoc);
-  const wasCompleted = habit.completed;
+const handleToggleHabit = async (habit: Habit) => {
+  const xpChange = await toggleHabitCompletion(habit);
 
-  const updateHabit = async (habitRef: any, completed: boolean, earnedXP: number) => {
-    await updateDoc(habitRef, {
-      completed,
-      streak: completed ? (habit.streak || 0) + 1 : Math.max(0, (habit.streak || 0) - 1),
-      lastEarnedXP: earnedXP // Store the earned XP with the habit
-    });
-  };
-
-  if (user.value) {
-    // Update in Firebase if user is logged in
-    const habitRef = doc(habitsRef, habit.id);
-
-    if (!wasCompleted) {
-      // Calculate XP to be earned when checking the habit
-      const earnedXP = 10 + Math.floor(habit.streak / 3) * 5;
-      await updateHabit(habitRef, true, earnedXP);
-      xp.value += earnedXP;
-      displayNotification('notifications.xpGained', { amount: earnedXP });
-    } else {
-      // Get the last earned XP amount and deduct it
-      const lastEarnedXP = habit.lastEarnedXP || 0;
-      await updateHabit(habitRef, false, 0);
-      xp.value = Math.max(0, xp.value - lastEarnedXP);
-      displayNotification('notifications.xpLost', { amount: lastEarnedXP });
-    }
-  } else {
-    // Update in localStorage if user is not logged in
-    const habitIndex = localHabits.value.findIndex(h => h.id === habit.id);
-    if (habitIndex !== -1) {
-      if (!wasCompleted) {
-        // Calculate XP to be earned when checking the habit
-        const earnedXP = 10 + Math.floor(localHabits.value[habitIndex].streak / 3) * 5;
-        localHabits.value[habitIndex].completed = true;
-        localHabits.value[habitIndex].streak = (localHabits.value[habitIndex].streak || 0) + 1;
-        localHabits.value[habitIndex].lastEarnedXP = earnedXP;
-        xp.value += earnedXP;
-        displayNotification('notifications.xpGained', { amount: earnedXP });
-      } else {
-        // Get the last earned XP amount and deduct it
-        const lastEarnedXP = localHabits.value[habitIndex].lastEarnedXP || 0;
-        localHabits.value[habitIndex].completed = false;
-        localHabits.value[habitIndex].streak = Math.max(0, (localHabits.value[habitIndex].streak || 0) - 1);
-        localHabits.value[habitIndex].lastEarnedXP = 0;
-        xp.value = Math.max(0, xp.value - lastEarnedXP);
-        displayNotification('notifications.xpLost', { amount: lastEarnedXP });
-      }
-      saveLocalHabits();
-    }
-  }
-
-  if (xp.value >= xpToNextLevel.value) {
-    levelUp();
+  if (xpChange > 0) {
+    addXP(xpChange);
+    displayNotification(t('notifications.xpGained', { amount: xpChange }));
+  } else if (xpChange < 0) {
+    removeXP(Math.abs(xpChange));
+    displayNotification(t('notifications.xpLost', { amount: Math.abs(xpChange) }));
   }
 };
 
@@ -429,83 +89,48 @@ const levelUp = () => {
   }, 3000);
 };
 
-// Reset habits daily
-const lastResetDate = ref('');
+// Initialize and setup
+onMounted(async () => {
+  loadPlayerState();
+  await resetDailyHabits();
 
-const resetHabitsIfNewDay = () => {
-  const today = new Date().toDateString();
+  // Check for day change when app is focused
+  window.addEventListener('focus', resetDailyHabits);
 
-  if (lastResetDate.value !== today) {
-    combinedHabits.value.forEach(habit => {
-      // If habit wasn't completed yesterday, reset streak
-      if (!habit.completed) {
-        habit.streak = 0;
-      }
-      habit.completed = false;
-    });
-
-    lastResetDate.value = today;
-    // Save to localStorage
-    localStorage.setItem('lastResetDate', today);
-
-    displayNotification('notifications.dailyReset');
-  }
-};
-
-// Format time spent
-const formatTimeSpent = (seconds: number) => {
-  if (!seconds) return '0m';
-
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  } else {
-    return `${minutes}m`;
-  }
-};
-
-// Helper function to save local habits
-const saveLocalHabits = () => {
-  localStorage.setItem('localHabits', JSON.stringify(localHabits.value));
-};
-
-// Load data from localStorage
-onMounted(() => {
-  const savedLocalHabits = localStorage.getItem('localHabits');
-  const savedLevel = localStorage.getItem('level');
-  const savedXp = localStorage.getItem('xp');
-  const savedLastResetDate = localStorage.getItem('lastResetDate');
-
-  if (savedLocalHabits) localHabits.value = JSON.parse(savedLocalHabits);
-  if (savedLevel) level.value = parseInt(savedLevel);
-  if (savedXp) xp.value = parseInt(savedXp);
-  if (savedLastResetDate) lastResetDate.value = savedLastResetDate;
-
-  resetHabitsIfNewDay();
+  return () => {
+    window.removeEventListener('focus', resetDailyHabits);
+  };
 });
 
 // Save data to localStorage when it changes
-watch([localHabits, level, xp], () => {
-  saveLocalHabits();
+watch([level, xp], () => {
   localStorage.setItem('level', level.value.toString());
   localStorage.setItem('xp', xp.value.toString());
 }, { deep: true });
 
-// Check for day change when app is focused
-window.addEventListener('focus', resetHabitsIfNewDay);
+// Setup timer completion callback
+setOnTimerCompleted(() => {
+  if (timerState.value.mode === 'pomodoro' && timerState.value.selectedHabit) {
+    const earnedXP = 15; // XP for completing a Pomodoro
+    addXP(earnedXP);
 
-// Clean up timer on component unmount
-onMounted(() => {
-  return () => {
-    if (timerInterval.value) {
-      clearInterval(timerInterval.value);
-    }
-  };
+    const habit = timerState.value.selectedHabit;
+    updateHabit(habit.id, {
+      timeSpent: (habit.timeSpent || 0) + 1,
+      completed: true
+    });
+
+    displayNotification(t('notifications.pomodoroCompleted', { amount: earnedXP }));
+  } else {
+    displayNotification(t('notifications.breakCompleted', {
+      type: timerState.value.mode === 'shortBreak' ? t('timer.shortBreak') : t('timer.longBreak')
+    }));
+  }
+
+  // Play completion sound
+  const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3');
+  audio.play();
 });
-
-const user = useCurrentUser()
 </script>
 
 <template>
@@ -525,41 +150,41 @@ const user = useCurrentUser()
         </div>
 
         <!-- Notification -->
-        <div class="notification" v-if="showNotification">
+        <div class="notification" v-if="notificationState.show">
           <img src="../assets/notification-icon.svg" alt="Notification" class="notification-icon" />
-          <div class="notification-message">{{ notificationMessage }}</div>
+          <div class="notification-message">{{ notificationState.message }}</div>
         </div>
 
         <!-- Timer Modal -->
-        <div class="timer-modal" v-if="showTimer && selectedHabit">
+        <div class="timer-modal" v-if="timerState.showTimer && timerState.selectedHabit">
           <div class="timer-content">
             <div class="timer-header">
-              <h3>{{ selectedHabit.name }}</h3>
+              <h3>{{ timerState.selectedHabit.name }}</h3>
               <button class="close-button" @click="closeTimer">×</button>
             </div>
 
-            <div class="timer-display" :class="{ 'timer-running': timerRunning }">
-              {{ formattedTime }}
+            <div class="timer-display" :class="{ 'timer-running': timerState.isRunning }">
+              {{ timerState.formattedTime }}
             </div>
 
             <div class="timer-modes">
               <button
                 @click="setTimerMode('pomodoro')"
-                :class="{ active: timerMode === 'pomodoro' }"
+                :class="{ active: timerState.mode === 'pomodoro' }"
                 class="mode-button"
               >
                 {{ t('timer.pomodoro') }}
               </button>
               <button
                 @click="setTimerMode('shortBreak')"
-                :class="{ active: timerMode === 'shortBreak' }"
+                :class="{ active: timerState.mode === 'shortBreak' }"
                 class="mode-button"
               >
                 {{ t('timer.shortBreak') }}
               </button>
               <button
                 @click="setTimerMode('longBreak')"
-                :class="{ active: timerMode === 'longBreak' }"
+                :class="{ active: timerState.mode === 'longBreak' }"
                 class="mode-button"
               >
                 {{ t('timer.longBreak') }}
@@ -570,7 +195,7 @@ const user = useCurrentUser()
               <button
                 @click="startTimer"
                 class="control-button start"
-                v-if="!timerRunning"
+                v-if="!timerState.isRunning"
               >
                 {{ t('timer.start') }}
               </button>
@@ -589,9 +214,9 @@ const user = useCurrentUser()
               </button>
             </div>
 
-            <div class="timer-info" v-if="selectedHabit.timeSpent">
+            <div class="timer-info" v-if="timerState.selectedHabit.timeSpent">
               <div class="time-spent">
-                {{ t('timer.timeSpent') }}: {{ formatTimeSpent(selectedHabit.timeSpent) }}
+                {{ t('timer.timeSpent') }}: {{ formatTimeSpent(timerState.selectedHabit.timeSpent) }}
               </div>
             </div>
           </div>
@@ -625,13 +250,13 @@ const user = useCurrentUser()
           </div>
 
           <ul class="habit-list">
-            <li v-for="habit in combinedHabits" :key="habit.id" class="habit-item">
+            <li v-for="habit in habits" :key="habit.id" class="habit-item">
               <div class="habit-content">
                 <div class="habit-left">
                   <input
                     type="checkbox"
                     :checked="habit.completed"
-                    @change="toggleHabit(habit)"
+                    @change="handleToggleHabit(habit)"
                     class="habit-checkbox"
                   />
                   <span class="habit-name" :class="{ completed: habit.completed }">
@@ -648,7 +273,7 @@ const user = useCurrentUser()
                   <button class="timer-button" @click="selectHabitForTimer(habit)" :title="t('quests.startTimer')">
                     <span class="timer-icon">⏱️</span>
                   </button>
-                  <button class="delete-button" @click="deleteHabit(habit.id)" :title="t('quests.removeQuest')">
+                  <button class="delete-button" @click="handleDeleteHabit(habit.id)" :title="t('quests.removeQuest')">
                     <span class="delete-icon">×</span>
                   </button>
                 </div>

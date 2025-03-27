@@ -1,5 +1,3 @@
-// src/firebase/config.ts
-
 import { initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
 import { getFirestore, collection } from 'firebase/firestore'
@@ -22,6 +20,7 @@ export const auth = getAuth(firebaseApp)
 export const db = getFirestore(firebaseApp)
 
 // Export commonly used references
-export const questsRef = collection(db, 'quests')
 export const habitsRef = collection(db, 'habits')
-export const userProfilesRef = collection(db, 'userProfiles')
+export const playerRef = collection(db, 'players')
+
+export const app =  firebaseApp

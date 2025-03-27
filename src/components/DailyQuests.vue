@@ -1,45 +1,18 @@
 <script setup lang="ts">
-import { defineProps, defineEmits } from 'vue';
+import { useHabits } from '../composables/useHabits';
+import { useTimer } from '../composables/useTimer';
+import { useI18n } from '../composables/useI18n';
 
-interface Habit {
-  id: number;
-  name: string;
-  completed: boolean;
-  streak: number;
-  timeSpent?: number;
-}
-
-interface Props {
-  habits: Habit[];
-}
-
-defineProps<Props>();
-
-const emit = defineEmits<{
-  (e: 'complete', habit: Habit): void;
-  (e: 'remove', habitId: number): void;
-  (e: 'selectForTimer', habit: Habit): void;
-}>();
-
-const formatTimeSpent = (seconds: number) => {
-  if (!seconds) return '0m';
-
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  } else {
-    return `${minutes}m`;
-  }
-};
+const { habits, updateHabit, deleteHabit, formatTimeSpent } = useHabits();
+const { selectHabit: selectHabitForTimer } = useTimer();
+const { t } = useI18n();
 </script>
 
 <template>
   <div class="daily-quests">
     <div class="quest-header">
       <div class="rune-symbol left"></div>
-      <h3>DAILY QUESTS</h3>
+      <h3>{{ t('quests.title') }}</h3>
       <div class="rune-symbol right"></div>
     </div>
 
@@ -50,7 +23,7 @@ const formatTimeSpent = (seconds: number) => {
             <input
               type="checkbox"
               :checked="habit.completed"
-              @change="emit('complete', habit)"
+              @change="updateHabit(habit, { completed: !habit.completed })"
               class="habit-checkbox"
             />
             <span class="habit-name" :class="{ completed: habit.completed }">
@@ -58,14 +31,16 @@ const formatTimeSpent = (seconds: number) => {
             </span>
           </div>
           <div class="habit-right">
-            <span class="time-badge" v-if="habit.timeSpent" title="Time spent on this quest">
+            <span class="time-badge" v-if="habit.timeSpent" :title="t('quests.timeSpent')">
               {{ formatTimeSpent(habit.timeSpent) }}
             </span>
-            <span class="streak-badge" v-if="habit.streak > 0">{{ habit.streak }} 🔥</span>
-            <button class="timer-button" @click="emit('selectForTimer', habit)" title="Start Timer">
+            <span class="streak-badge" v-if="habit.streak > 0">
+              {{ habit.streak }} 🔥 {{ t('quests.streak') }}
+            </span>
+            <button class="timer-button" @click="selectHabitForTimer(habit)" :title="t('quests.startTimer')">
               <span class="timer-icon">⏱️</span>
             </button>
-            <button class="delete-button" @click="emit('remove', habit.id)" title="Remove Quest">
+            <button class="delete-button" @click="deleteHabit(habit.id)" :title="t('quests.removeQuest')">
               <span class="delete-icon">×</span>
             </button>
           </div>

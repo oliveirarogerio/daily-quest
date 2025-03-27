@@ -1,30 +1,15 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { usePlayer } from '../composables/usePlayer';
+import { useI18n } from '../composables/useI18n';
 
-interface Props {
-  level: number;
-  xp: number;
-  xpToNextLevel: number;
-}
-
-const props = defineProps<Props>();
-
-const xpPercentage = computed(() => (props.xp / props.xpToNextLevel) * 100);
-
-const rank = computed(() => {
-  if (props.level >= 50) return 'S';
-  if (props.level >= 40) return 'A';
-  if (props.level >= 30) return 'B';
-  if (props.level >= 20) return 'C';
-  if (props.level >= 10) return 'D';
-  return 'E';
-});
+const { level, xp, xpToNextLevel, xpPercentage, rank } = usePlayer();
+const { t } = useI18n();
 </script>
 
 <template>
   <div class="player-status">
     <div class="player-rank">
-      <div class="rank-label">RANK</div>
+      <div class="rank-label">{{ t('player.rank') }}</div>
       <div class="rank-value">{{ rank }}</div>
     </div>
 
@@ -34,10 +19,10 @@ const rank = computed(() => {
     </div>
 
     <div class="player-info">
-      <h2>Hunter Level {{ level }}</h2>
+      <h2>{{ t('player.level') }} {{ level }}</h2>
       <div class="xp-bar-container">
         <div class="xp-bar" :style="{ width: xpPercentage + '%' }"></div>
-        <span class="xp-text">{{ xp }} / {{ xpToNextLevel }} XP</span>
+        <span class="xp-text">{{ xp }} / {{ xpToNextLevel }} {{ t('player.xp') }}</span>
       </div>
     </div>
   </div>

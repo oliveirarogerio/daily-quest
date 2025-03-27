@@ -1,16 +1,13 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { useHabits } from '../composables/useHabits';
+import { useI18n } from '../composables/useI18n';
 
-const newHabitName = ref('');
+const { newHabitName, addHabit } = useHabits();
+const { t } = useI18n();
 
-const emit = defineEmits<{
-  (e: 'add', name: string): void;
-}>();
-
-const addHabit = () => {
+const handleAddHabit = () => {
   if (newHabitName.value.trim()) {
-    emit('add', newHabitName.value.trim());
-    newHabitName.value = '';
+    addHabit(newHabitName.value.trim());
   }
 };
 </script>
@@ -20,11 +17,11 @@ const addHabit = () => {
     <input
       type="text"
       v-model="newHabitName"
-      placeholder="Add new quest..."
-      @keyup.enter="addHabit"
+      :placeholder="t('quests.addPlaceholder')"
+      @keyup.enter="handleAddHabit"
     />
-    <button @click="addHabit">
-      <span class="button-text">Add Quest</span>
+    <button @click="handleAddHabit">
+      <span class="button-text">{{ t('quests.addButton') }}</span>
     </button>
   </div>
 </template>
