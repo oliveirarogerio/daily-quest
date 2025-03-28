@@ -294,12 +294,6 @@ setOnTimerCompleted(() => {
           </button>
         </div>
 
-        <!-- Footer -->
-        <div class="footer">
-          <a href="https://github.com/oliveirarogerio" target="_blank" rel="noopener noreferrer" class="footer-link">
-            {{ t('footer.madeBy') }}
-          </a>
-        </div>
       </div>
     </div>
   </div>
@@ -1037,47 +1031,6 @@ setOnTimerCompleted(() => {
   z-index: 1;
 }
 
-/* Footer styling */
-.footer {
-  margin-top: 20px;
-  padding-top: 15px;
-  border-top: 1px solid rgba(106, 90, 205, 0.3);
-  text-align: center;
-  position: relative;
-  z-index: 1;
-}
-
-.footer-link {
-  color: #9370db;
-  text-decoration: none;
-  font-size: 0.9rem;
-  transition: all 0.3s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.footer-link:hover {
-  color: #6a5acd;
-  transform: translateY(-2px);
-  text-shadow: 0 0 5px rgba(106, 90, 205, 0.7);
-}
-
-.footer-link::before {
-  font-size: 1rem;
-}
-
-/* Responsive styles for footer */
-@media (max-width: 768px) {
-  .footer {
-    margin-top: 15px;
-    padding-top: 12px;
-  }
-
-  .footer-link {
-    font-size: 0.85rem;
-  }
-}
 
 /* Responsive styles */
 @media (max-width: 768px) {

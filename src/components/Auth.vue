@@ -7,7 +7,7 @@ import {
   signOut,
   GoogleAuthProvider,
   signInWithPopup,
-  getAuth
+  getAuth,
 } from 'firebase/auth'
 import { doc, setDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
@@ -18,6 +18,7 @@ const user = useCurrentUser()
 const email = ref('')
 const name = ref('')
 const password = ref('')
+const confirmPassword = ref('')
 const isRegistering = ref(false)
 const error = ref('')
 const isLoading = ref(false)
@@ -29,6 +30,11 @@ const handleAuth = async () => {
   try {
     isLoading.value = true
     error.value = ''
+
+    if (isRegistering.value && password.value !== confirmPassword.value) {
+      error.value = t('auth.passwordMismatch')
+      return
+    }
 
     const authFunction = isRegistering.value
       ? createUserWithEmailAndPassword
@@ -54,7 +60,7 @@ async function createPlayer(result: any) {
     createdAt: new Date(),
     level: 1,
     xp: 0,
-    rank: "E",
+    rank: 'E',
   })
 }
 
@@ -74,6 +80,7 @@ const handleGoogleSignIn = async () => {
 const resetForm = () => {
   email.value = ''
   password.value = ''
+  confirmPassword.value = ''
   error.value = ''
   showLoginPrompt.value = false
   showAuthForm.value = false
@@ -96,13 +103,17 @@ const dismissAuth = () => {
   <div class="auth-container">
     <template v-if="!user">
       <!-- Login Prompt -->
-      <div v-if="showLoginPrompt" class="login-prompt" @click="startAuth">
+      <div v-if="showLoginPrompt" class="login-prompt">
         <div class="login-prompt-content">
-          <div class="login-prompt-icon">🎮</div>
-          <h3>{{ t('auth.saveProgress') }}</h3>
-          <p>{{ t('auth.saveProgressDesc') }}</p>
-          <button class="maybe-later-btn" @click.stop="dismissAuth">
-            {{ t('auth.maybeLater') }}
+          <button
+            class="auth-btn register-btn"
+            @click.stop="
+              () => {
+                startAuth()
+              }
+            "
+          >
+            {{ t('auth.login') }}
           </button>
         </div>
       </div>
@@ -112,7 +123,9 @@ const dismissAuth = () => {
         <div class="auth-content">
           <div class="auth-header">
             <h2>{{ isRegistering ? t('auth.register') : t('auth.login') }}</h2>
-            <p class="auth-subtitle">{{ isRegistering ? t('auth.createAccount') : t('auth.welcomeBack') }}</p>
+            <p class="auth-subtitle">
+              {{ isRegistering ? t('auth.createAccount') : t('auth.welcomeBack') }}
+            </p>
             <button class="close-btn" @click="dismissAuth">×</button>
           </div>
 
@@ -154,14 +167,29 @@ const dismissAuth = () => {
               />
             </div>
 
+            <div v-if="isRegistering" class="form-group">
+              <label for="confirmPassword">{{ t('auth.confirmPassword') }}</label>
+              <input
+                id="confirmPassword"
+                v-model="confirmPassword"
+                type="password"
+                :placeholder="t('auth.confirmPasswordPlaceholder')"
+                required
+                :disabled="isLoading"
+                minlength="6"
+              />
+            </div>
+
             <p v-if="error" class="error">{{ error }}</p>
 
-            <button
-              type="submit"
-              class="primary-btn"
-              :disabled="isLoading"
-            >
-              {{ isLoading ? t('auth.processing') : (isRegistering ? t('auth.register') : t('auth.login')) }}
+            <button type="submit" class="primary-btn" :disabled="isLoading">
+              {{
+                isLoading
+                  ? t('auth.processing')
+                  : isRegistering
+                    ? t('auth.register')
+                    : t('auth.login')
+              }}
             </button>
 
             <div class="divider">
@@ -195,13 +223,21 @@ const dismissAuth = () => {
     </template>
 
     <div v-else class="user-info">
-      <div class="user-avatar">
-        <img :src="user.photoURL || '/default-avatar.svg'" :alt="user.displayName || user.email || ''" />
-      </div>
       <div class="user-details">
         <p class="user-name">{{ user.displayName || user.email }}</p>
         <button class="signout-btn" @click="handleSignOut">{{ t('auth.signOut') }}</button>
       </div>
+    </div>
+
+    <div class="footer">
+      <a
+        href="https://github.com/oliveirarogerio"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="footer-link"
+      >
+        {{ t('footer.madeBy') }}
+      </a>
     </div>
   </div>
 </template>
@@ -216,6 +252,48 @@ const dismissAuth = () => {
   z-index: 5;
 }
 
+/* Footer styling */
+.footer {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid rgba(106, 90, 205, 0.3);
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.footer-link {
+  color: #9370db;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.footer-link:hover {
+  color: #6a5acd;
+  transform: translateY(-2px);
+  text-shadow: 0 0 5px rgba(106, 90, 205, 0.7);
+}
+
+.footer-link::before {
+  font-size: 1rem;
+}
+
+/* Responsive styles for footer */
+@media (max-width: 768px) {
+  .footer {
+    margin-top: 15px;
+    padding-top: 12px;
+  }
+
+  .footer-link {
+    font-size: 0.85rem;
+  }
+}
+
 .auth-mobile {
   position: fixed;
   top: 0;
@@ -228,7 +306,8 @@ const dismissAuth = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
 }
 
 .auth-content {
@@ -406,6 +485,15 @@ input:focus {
   border: 1px solid rgba(106, 90, 205, 0.2);
 }
 
+@media (max-width: 768px) {
+  .user-info {
+    height: 80px;
+  }
+
+  .signout-btn {
+  }
+}
+
 .user-avatar {
   width: 48px;
   height: 48px;
@@ -455,7 +543,6 @@ input:focus {
     -webkit-overflow-scrolling: touch;
   }
 
-
   .auth-mobile {
     align-items: flex-start;
     padding-top: max(2rem, env(safe-area-inset-top));
@@ -488,75 +575,61 @@ input:focus {
 }
 
 .login-prompt {
-  margin-bottom: 25px;
+  margin: 0.75rem auto;
+  padding: 0.75rem;
+  background: transparent;
+  width: 100%;
+  max-width: 280px;
+}
+
+.login-prompt-content {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.auth-btn {
+  flex: 1;
+  padding: 0.75rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
   cursor: pointer;
-  padding: 1rem;
-  background: rgba(42, 42, 68, 0.5);
-  border-radius: 12px;
-  border: 1px solid rgba(106, 90, 205, 0.2);
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
+  border: none;
+  min-width: 100px;
+}
+
+.signin-btn {
+  background: rgba(106, 90, 205, 0.1);
+  color: #6a5acd;
+  border: 1px solid rgba(106, 90, 205, 0.3);
+}
+
+.signin-btn:hover {
+  background: rgba(106, 90, 205, 0.2);
+}
+
+.register-btn {
+  background: #6a5acd;
+  color: white;
+}
+
+.register-btn:hover {
+  background: #5a4abf;
 }
 
 @media (max-width: 768px) {
   .login-prompt {
-    margin: 0.5rem;
-    padding: 1rem;
-    margin-bottom: 100px;
-  }
-
-  .login-prompt h3 {
-    font-size: 1.1rem;
-  }
-
-  .login-prompt p {
-    font-size: 0.9rem;
-  }
-
-  .maybe-later-btn {
-    margin-top: 0.75rem;
+    margin: 0.5rem auto;
     padding: 0.5rem;
+    max-width: calc(100% - 2rem);
   }
 
-  .close-btn {
-    padding: 0.75rem;
+  .auth-btn {
+    padding: 0.6rem;
+    font-size: 0.85rem;
   }
-}
-
-.login-prompt-content {
-  text-align: center;
-  position: relative;
-}
-
-.login-prompt-icon {
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
-}
-
-.login-prompt h3 {
-  color: #fff;
-  margin: 0 0 0.5rem;
-  font-size: 1.2rem;
-}
-
-.login-prompt p {
-  color: #9370db;
-  margin: 0;
-  font-size: 0.9rem;
-}
-
-.maybe-later-btn {
-  margin-top: 1rem;
-  padding: 0.5rem 1rem;
-  background: none;
-  border: none;
-  color: #9370db;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: color 0.3s ease;
-}
-
-.maybe-later-btn:hover {
-  color: #fff;
 }
 
 .close-btn {

@@ -100,6 +100,15 @@ body {
   box-sizing: border-box;
 }
 
+@media (max-width: 768px) {
+  .content {
+    padding-top: 100px;
+    padding-bottom: 100px;
+    margin-top: 100px;
+    margin-bottom: 100px;
+  }
+}
+
 header {
   width: 100%;
   text-align: center;
@@ -215,7 +224,6 @@ main > * {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
   align-items: center;
 }
 
@@ -272,8 +280,9 @@ main > * {
 
 .habit-tracker-container {
   width: 100%;
-  margin-bottom: 2rem;
 }
+
+
 
 .debug-info {
   position: fixed;
