@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import {onMounted, watch } from 'vue';
 import BackgroundAnimation from './BackgroundAnimation.vue';
 import { useHabits } from '../composables/useHabits';
 import { usePlayer } from '../composables/usePlayer';
@@ -321,8 +321,80 @@ setOnTimerCompleted(() => {
 /* Add margin on mobile screens */
 @media (max-width: 768px) {
   .habit-tracker {
-    margin-left: 20px;
-    margin-right: 20px;
+    margin: 0;
+    padding: 10px;
+  }
+
+  .system-content {
+    padding: 10px 0;
+  }
+
+  .player-status {
+    margin: 10px;
+    padding: 12px;
+  }
+
+  .player-info h2 {
+    font-size: 1.1rem;
+  }
+
+  .xp-text {
+    font-size: 0.8rem;
+  }
+
+  .daily-quests {
+    margin: 10px;
+    padding: 12px;
+  }
+
+  .habit-list {
+    margin: 0;
+    padding: 0;
+  }
+
+  .habit-item {
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+
+  .habit-name {
+    font-size: 0.9rem;
+  }
+
+  .add-habit {
+    margin: 10px;
+  }
+
+  .add-habit input,
+  .add-habit button {
+    height: 44px;
+    font-size: 0.9rem;
+  }
+
+  .streak-badge,
+  .time-badge {
+    font-size: 0.7rem;
+    padding: 2px 4px;
+  }
+
+  .timer-button,
+  .delete-button {
+    width: 20px;
+    height: 20px;
+  }
+
+  .header {
+    margin-top: 50px;
+    margin-bottom: 30px;
+  }
+}
+
+/* Add safe area insets for modern mobile devices */
+@supports (padding: max(0px)) {
+  .habit-tracker {
+    padding-left: max(10px, env(safe-area-inset-left));
+    padding-right: max(10px, env(safe-area-inset-right));
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
   }
 }
 
@@ -1307,29 +1379,76 @@ setOnTimerCompleted(() => {
 
 /* Responsive styles for timer */
 @media (max-width: 768px) {
+  .timer-modal {
+    align-items: flex-end;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
   .timer-content {
-    width: 95%;
-    padding: 15px;
+    width: 100%;
+    margin: 0;
+    border-radius: 20px 20px 0 0;
+    padding: 20px 15px;
+    max-height: 80vh;
+    overflow-y: auto;
   }
 
   .timer-display {
-    font-size: 2.5rem;
+    font-size: 3rem;
     margin: 15px 0;
   }
 
   .timer-modes {
-    flex-wrap: wrap;
+    gap: 8px;
   }
 
   .mode-button {
-    font-size: 0.8rem;
-    padding: 6px 10px;
+    flex: 1;
+    min-width: 0;
+    padding: 10px 8px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+
+  .timer-controls {
+    flex-wrap: wrap;
+    gap: 10px;
   }
 
   .control-button {
-    padding: 8px 15px;
+    flex: 1;
+    min-width: 120px;
+    padding: 12px;
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .notification {
+    top: auto;
+    bottom: max(20px, env(safe-area-inset-bottom));
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 40px);
+    max-width: 400px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 2000;
+  }
+
+  .notification-message {
     font-size: 0.9rem;
-    min-width: 80px;
+  }
+
+  @keyframes slideIn {
+    from { transform: translate(-50%, 100%); opacity: 0; }
+    to { transform: translate(-50%, 0); opacity: 1; }
+  }
+
+  @keyframes fadeOut {
+    from { opacity: 1; transform: translate(-50%, 0); }
+    to { opacity: 0; transform: translate(-50%, 100%); }
   }
 }
 </style>

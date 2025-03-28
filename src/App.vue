@@ -1,54 +1,28 @@
 <script setup lang="ts">
-import { useCurrentUser } from 'vuefire'
 import HabitTracker from './components/HabitTracker.vue'
 import Auth from './components/Auth.vue'
-import { ref, onMounted, watch } from 'vue'
 
-const user = useCurrentUser()
-const isLoading = ref(true)
-const error = ref('')
-const showAuth = ref(false)
 
-onMounted(() => {
-  setTimeout(() => {
-    isLoading.value = false
-  }, 1000)
-})
-
-watch(user, (newUser) => {
-  console.log('User state changed:', newUser ? 'logged in' : 'logged out')
-})
 </script>
 
 <template>
   <div class="app-container">
     <div class="background-pattern"></div>
     <div class="content">
-      <header>
+      <div class="header">
         <h1>DAILY QUEST</h1>
         <p class="subtitle">Level up your life, one quest at a time</p>
-      </header>
+      </div>
 
-      <main>
-        <div class="main-content">
-          <div v-if="isLoading" class="loading">
-            Loading...
-          </div>
-          <template v-else>
-            <div  class="habit-tracker-container">
-              <HabitTracker />
-            </div>
-            <div v-if="!user" class="auth-section">
-              <p class="auth-prompt">Want to save your progress? <button @click="showAuth = true" class="auth-button">Sign In</button></p>
-            </div>
-            <div v-if="showAuth" class="auth-section">
-              <Auth />
-            </div>
-          </template>
+      <div class="main-content">
+        <div class="habit-tracker-container">
+          <HabitTracker />
         </div>
-      </main>
 
-
+        <div class="auth-section">
+          <Auth />
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -56,7 +30,9 @@ watch(user, (newUser) => {
 <style>
 @import './assets/base.css';
 
-html, body, #app {
+html,
+body,
+#app {
   margin: 0;
   padding: 0;
   height: 100%;
@@ -69,6 +45,11 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+.header {
+  margin-top: 100px;
+  margin-bottom: 25px;
 }
 
 #app {
@@ -131,7 +112,8 @@ header {
   justify-content: center;
 }
 
-header::before, header::after {
+header::before,
+header::after {
   content: '';
   position: absolute;
   width: 100px;
@@ -239,10 +221,7 @@ main > * {
 
 .auth-section {
   width: 100%;
-  max-width: 400px;
-  margin-top: 2rem;
-  padding-top: 2rem;
-  border-top: 1px solid rgba(106, 90, 205, 0.3);
+  max-width: 300px;
 }
 
 .auth-prompt {
@@ -310,9 +289,15 @@ main > * {
 }
 
 @keyframes pulse {
-  0% { opacity: 0.6; }
-  50% { opacity: 1; }
-  100% { opacity: 0.6; }
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+  }
 }
 
 @media (max-width: 768px) {

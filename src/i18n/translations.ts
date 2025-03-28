@@ -2,12 +2,33 @@ export const translations = {
   en: {
     system: {
       title: 'SYSTEM',
-      date: 'Date'
+      date: 'Date',
+    },
+    auth: {
+      register: 'Register',
+      login: 'Login',
+      createAccount: 'Create your account to track your progress',
+      welcomeBack: 'Welcome back! Continue your journey',
+      name: 'Name',
+      namePlaceholder: 'Enter your name',
+      email: 'Email',
+      emailPlaceholder: 'Enter your email',
+      password: 'Password',
+      passwordPlaceholder: 'Enter your password',
+      processing: 'Processing...',
+      or: 'or',
+      continueWithGoogle: 'Continue with Google',
+      alreadyHaveAccount: 'Already have an account?',
+      noAccount: "Don't have an account?",
+      signOut: 'Sign Out',
+      saveProgress: 'Save Your Progress',
+      saveProgressDesc: 'Create an account to track your habits and progress across devices',
+      maybeLater: 'Maybe Later',
     },
     player: {
       rank: 'RANK',
-      level: 'Hunter Level',
-      xp: 'XP'
+      level: 'Player Level',
+      xp: 'XP',
     },
     quests: {
       title: 'DAILY QUESTS',
@@ -16,7 +37,7 @@ export const translations = {
       timeSpent: 'Time spent',
       streak: 'streak',
       startTimer: 'Start Timer',
-      removeQuest: 'Remove Quest'
+      removeQuest: 'Remove Quest',
     },
     timer: {
       pomodoro: 'Pomodoro',
@@ -25,7 +46,7 @@ export const translations = {
       start: 'Start',
       pause: 'Pause',
       reset: 'Reset',
-      timeSpent: 'Time spent'
+      timeSpent: 'Time spent',
     },
     notifications: {
       newQuest: 'New Quest Added!',
@@ -34,21 +55,43 @@ export const translations = {
       xpLost: '-{amount} XP Lost',
       dailyReset: 'Daily Quests Reset!',
       pomodoroCompleted: 'Pomodoro Completed! +{amount} XP',
-      breakCompleted: '{type} Break Completed!'
+      breakCompleted: '{type} Break Completed!',
     },
     footer: {
-      madeBy: 'Made by Rogério Oliveira'
-    }
+      madeBy: 'Made by Rogério Oliveira',
+    },
   },
   pt: {
     system: {
       title: 'SYSTEM',
-      date: 'Data'
+      date: 'Data',
+    },
+    auth: {
+      register: 'Registrar',
+      login: 'Entrar',
+      createAccount: 'Crie sua conta para acompanhar seu progresso',
+      welcomeBack: 'Bem-vindo de volta! Continue sua jornada',
+      name: 'Nome',
+      namePlaceholder: 'Digite seu nome',
+      email: 'Email',
+      emailPlaceholder: 'Digite seu email',
+      password: 'Senha',
+      passwordPlaceholder: 'Digite sua senha',
+      processing: 'Processando...',
+      or: 'ou',
+      continueWithGoogle: 'Continuar com Google',
+      alreadyHaveAccount: 'Já tem uma conta?',
+      noAccount: 'Não tem uma conta?',
+      signOut: 'Sair',
+      saveProgress: 'Salve Seu Progresso',
+      saveProgressDesc:
+        'Crie uma conta para acompanhar seus hábitos e progresso em todos os dispositivos',
+      maybeLater: 'Talvez Depois',
     },
     player: {
       rank: 'RANK',
-      level: 'Hunter Level',
-      xp: 'XP'
+      level: 'Player Level',
+      xp: 'XP',
     },
     quests: {
       title: 'MISSÕES DIÁRIAS',
@@ -57,7 +100,7 @@ export const translations = {
       timeSpent: 'Tempo gasto',
       streak: 'sequência',
       startTimer: 'Iniciar Timer',
-      removeQuest: 'Remover Missão'
+      removeQuest: 'Remover Missão',
     },
     timer: {
       pomodoro: 'Pomodoro',
@@ -66,7 +109,7 @@ export const translations = {
       start: 'Iniciar',
       pause: 'Pausar',
       reset: 'Reiniciar',
-      timeSpent: 'Tempo gasto'
+      timeSpent: 'Tempo gasto',
     },
     notifications: {
       newQuest: 'Nova Missão Adicionada!',
@@ -75,10 +118,10 @@ export const translations = {
       xpLost: '-{amount} XP Perdido',
       dailyReset: 'Missões Diárias Resetadas!',
       pomodoroCompleted: 'Pomodoro Concluído! +{amount} XP',
-      breakCompleted: '{type} Concluída!'
+      breakCompleted: '{type} Concluída!',
     },
     footer: {
-      madeBy: 'Feito por Rogério Oliveira'
-    }
-  }
-};
+      madeBy: 'Feito por Rogério Oliveira',
+    },
+  },
+}

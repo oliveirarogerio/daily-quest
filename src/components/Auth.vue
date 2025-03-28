@@ -7,13 +7,13 @@ import {
   signOut,
   GoogleAuthProvider,
   signInWithPopup,
-  getAuth,
-  UserCredential,
-  type AuthError
+  getAuth
 } from 'firebase/auth'
-
 import { doc, setDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { useI18n } from '../composables/useI18n'
+
+const { t } = useI18n()
 const user = useCurrentUser()
 const email = ref('')
 const name = ref('')
@@ -21,8 +21,9 @@ const password = ref('')
 const isRegistering = ref(false)
 const error = ref('')
 const isLoading = ref(false)
+const showLoginPrompt = ref(true)
+const showAuthForm = ref(false)
 const auth = getAuth()
-
 
 const handleAuth = async () => {
   try {
@@ -33,18 +34,19 @@ const handleAuth = async () => {
       ? createUserWithEmailAndPassword
       : signInWithEmailAndPassword
     const result = await authFunction(auth, email.value, password.value)
+
     if (isRegistering.value) {
       await createPlayer(result)
     }
     resetForm()
-  } catch (e) {
-    error.value = (e as AuthError).message
+  } catch (e: any) {
+    error.value = e.message
   } finally {
     isLoading.value = false
   }
 }
 
-async function createPlayer(result: UserCredential) {
+async function createPlayer(result: any) {
   const playerRef = doc(db, 'players', result.user.uid)
   await setDoc(playerRef, {
     name: name.value,
@@ -59,14 +61,9 @@ async function createPlayer(result: UserCredential) {
 const handleGoogleSignIn = async () => {
   try {
     isLoading.value = true
-    error.value = ''
     const provider = new GoogleAuthProvider()
-    console.log('provider', provider)
-    console.log('auth', auth)
     await signInWithPopup(auth, provider)
-    console.log('handleGoogleSignIn')
     resetForm()
-
   } catch (e) {
     console.error('Google Sign-In Error:', e)
   } finally {
@@ -78,85 +75,133 @@ const resetForm = () => {
   email.value = ''
   password.value = ''
   error.value = ''
+  showLoginPrompt.value = false
+  showAuthForm.value = false
 }
 
 const handleSignOut = () => signOut(auth)
+
+const startAuth = () => {
+  showLoginPrompt.value = false
+  showAuthForm.value = true
+}
+
+const dismissAuth = () => {
+  showLoginPrompt.value = false
+  showAuthForm.value = false
+}
 </script>
 
 <template>
   <div class="auth-container">
-    <div v-if="!user" class="auth-form">
-      <h2>{{ isRegistering ? 'Register' : 'Login' }}</h2>
-
-      <form @submit.prevent="handleAuth">
-        <div class="form-group">
-          <input
-            v-model="name"
-            type="string"
-            placeholder="Name"
-            required
-            :disabled="isLoading"
-            v-if="isRegistering"
-          />
+    <template v-if="!user">
+      <!-- Login Prompt -->
+      <div v-if="showLoginPrompt" class="login-prompt" @click="startAuth">
+        <div class="login-prompt-content">
+          <div class="login-prompt-icon">🎮</div>
+          <h3>{{ t('auth.saveProgress') }}</h3>
+          <p>{{ t('auth.saveProgressDesc') }}</p>
+          <button class="maybe-later-btn" @click.stop="dismissAuth">
+            {{ t('auth.maybeLater') }}
+          </button>
         </div>
-        <div class="form-group">
-          <input
-            v-model="email"
-            type="email"
-            placeholder="Email"
-            required
-            :disabled="isLoading"
-          />
+      </div>
+
+      <!-- Auth Form -->
+      <div v-if="showAuthForm" class="auth-mobile">
+        <div class="auth-content">
+          <div class="auth-header">
+            <h2>{{ isRegistering ? t('auth.register') : t('auth.login') }}</h2>
+            <p class="auth-subtitle">{{ isRegistering ? t('auth.createAccount') : t('auth.welcomeBack') }}</p>
+            <button class="close-btn" @click="dismissAuth">×</button>
+          </div>
+
+          <form @submit.prevent="handleAuth" class="auth-form">
+            <div v-if="isRegistering" class="form-group">
+              <label for="name">{{ t('auth.name') }}</label>
+              <input
+                id="name"
+                v-model="name"
+                type="text"
+                :placeholder="t('auth.namePlaceholder')"
+                required
+                :disabled="isLoading"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="email">{{ t('auth.email') }}</label>
+              <input
+                id="email"
+                v-model="email"
+                type="email"
+                :placeholder="t('auth.emailPlaceholder')"
+                required
+                :disabled="isLoading"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="password">{{ t('auth.password') }}</label>
+              <input
+                id="password"
+                v-model="password"
+                type="password"
+                :placeholder="t('auth.passwordPlaceholder')"
+                required
+                :disabled="isLoading"
+                minlength="6"
+              />
+            </div>
+
+            <p v-if="error" class="error">{{ error }}</p>
+
+            <button
+              type="submit"
+              class="primary-btn"
+              :disabled="isLoading"
+            >
+              {{ isLoading ? t('auth.processing') : (isRegistering ? t('auth.register') : t('auth.login')) }}
+            </button>
+
+            <div class="divider">
+              <span>{{ t('auth.or') }}</span>
+            </div>
+
+            <button
+              type="button"
+              class="google-btn"
+              @click="handleGoogleSignIn"
+              :disabled="isLoading"
+            >
+              <img src="../assets/google-icon.svg" alt="Google" class="google-icon" />
+              {{ t('auth.continueWithGoogle') }}
+            </button>
+
+            <p class="toggle-text">
+              {{ isRegistering ? t('auth.alreadyHaveAccount') : t('auth.noAccount') }}
+              <button
+                type="button"
+                class="toggle-btn"
+                @click="isRegistering = !isRegistering"
+                :disabled="isLoading"
+              >
+                {{ isRegistering ? t('auth.login') : t('auth.register') }}
+              </button>
+            </p>
+          </form>
         </div>
-
-        <div class="form-group">
-          <input
-            v-model="password"
-            type="password"
-            placeholder="Password"
-            required
-            :disabled="isLoading"
-            minlength="6"
-          />
-        </div>
-
-
-
-        <p v-if="error" class="error" role="alert">{{ error }}</p>
-
-        <button
-          type="submit"
-          class="primary-btn"
-          :disabled="isLoading"
-        >
-          {{ isLoading ? 'Processing...' : (isRegistering ? 'Register' : 'Login') }}
-        </button>
-
-        <button
-          type="button"
-          class="google-btn"
-          @click="handleGoogleSignIn"
-          :disabled="isLoading"
-        >
-          Continue with Google
-        </button>
-      </form>
-
-      <p class="toggle-text">
-        {{ isRegistering ? 'Already have an account?' : "Don't have an account?" }}
-        <button
-          class="toggle-btn"
-          @click="isRegistering = !isRegistering"
-          :disabled="isLoading"
-        >
-          {{ isRegistering ? 'Login' : 'Register' }}
-        </button>
-      </p>
-    </div>
+      </div>
+    </template>
 
     <div v-else class="user-info">
-      <p>Welcome, {{ user.email }}</p>
-      <button class="signout-btn" @click="handleSignOut">Sign Out</button>
+      <div class="user-avatar">
+        <img :src="user.photoURL || '/default-avatar.svg'" :alt="user.displayName || user.email || ''" />
+      </div>
+      <div class="user-details">
+        <p class="user-name">{{ user.displayName || user.email }}</p>
+        <button class="signout-btn" @click="handleSignOut">{{ t('auth.signOut') }}</button>
+      </div>
     </div>
   </div>
 </template>
@@ -165,139 +210,371 @@ const handleSignOut = () => signOut(auth)
 .auth-container {
   width: 100%;
   max-width: 400px;
-  padding: 2rem;
-  background: rgba(106, 90, 205, 0.1);
-  border-radius: 12px;
+  margin: 0 auto;
+  padding: 0;
+  position: relative;
+  z-index: 5;
+}
+
+.auth-mobile {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(26, 26, 42, 0.95);
   backdrop-filter: blur(10px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+.auth-content {
+  width: 100%;
+  max-width: 350px;
+  padding: 2rem;
+  background: rgba(42, 42, 68, 0.5);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(106, 90, 205, 0.2);
+  margin: 1rem;
+  position: relative;
+}
+
+.auth-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.auth-header h2 {
+  color: #fff;
+  font-size: 1.75rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.auth-subtitle {
+  color: #9370db;
+  font-size: 1rem;
+  opacity: 0.8;
 }
 
 .auth-form {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-}
-
-h2 {
-  color: #6a5acd;
-  text-align: center;
-  margin-bottom: 1rem;
-  font-size: 1.5rem;
+  gap: 1.25rem;
 }
 
 .form-group {
-  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+label {
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
 input {
   width: 100%;
-  padding: 0.8rem;
-  border: 1px solid rgba(106, 90, 205, 0.3);
-  border-radius: 6px;
+  padding: 0.75rem;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(106, 90, 205, 0.3);
   color: #fff;
-  transition: border-color 0.3s;
+  font-size: 1rem;
+  transition: all 0.3s ease;
 }
 
 input:focus {
   outline: none;
   border-color: #6a5acd;
-}
-
-input:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.error {
-  color: #ff6b6b;
-  margin: 0.5rem 0;
-  font-size: 0.9rem;
-  text-align: center;
-}
-
-button {
-  width: 100%;
-  padding: 0.8rem;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.3s;
-}
-
-button:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
+  box-shadow: 0 0 0 2px rgba(106, 90, 205, 0.2);
 }
 
 .primary-btn {
-  background: #6a5acd;
-  color: white;
-  margin-bottom: 1rem;
+  width: 100%;
+  padding: 0.875rem;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #6a5acd, #9370db);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
 .primary-btn:hover:not(:disabled) {
-  background: #9370db;
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(106, 90, 205, 0.3);
+}
+
+.primary-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 1rem 0;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid rgba(106, 90, 205, 0.3);
+}
+
+.divider span {
+  padding: 0 1rem;
+  color: #9370db;
+  font-size: 0.9rem;
 }
 
 .google-btn {
-  background: #fff;
-  color: #333;
-  margin-bottom: 1rem;
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(106, 90, 205, 0.3);
+  color: #fff;
+  font-size: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
 .google-btn:hover:not(:disabled) {
-  background: #f5f5f5;
-  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.google-icon {
+  width: 20px;
+  height: 20px;
 }
 
 .toggle-text {
   text-align: center;
+  color: #9370db;
+  font-size: 0.9rem;
   margin-top: 1rem;
-  color: rgba(255, 255, 255, 0.8);
 }
 
 .toggle-btn {
   background: none;
   border: none;
-  color: #6a5acd;
-  text-decoration: underline;
+  color: #fff;
+  font-weight: 600;
   cursor: pointer;
   padding: 0;
-  margin: 0;
-  font-size: inherit;
-  width: auto;
+  margin-left: 0.5rem;
+  transition: all 0.3s ease;
 }
 
 .toggle-btn:hover:not(:disabled) {
-  color: #9370db;
+  color: #6a5acd;
+}
+
+.error {
+  color: #ff6b6b;
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 0.5rem;
+  background: rgba(255, 107, 107, 0.1);
+  border-radius: 8px;
+  margin: 0;
 }
 
 .user-info {
-  text-align: center;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(42, 42, 68, 0.5);
+  border-radius: 12px;
+  border: 1px solid rgba(106, 90, 205, 0.2);
+}
+
+.user-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid #6a5acd;
+}
+
+.user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.user-details {
+  flex: 1;
+}
+
+.user-name {
   color: #fff;
+  font-weight: 500;
+  margin: 0 0 0.5rem;
 }
 
 .signout-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
   background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  margin-top: 1rem;
+  border: 1px solid rgba(106, 90, 205, 0.3);
+  color: #9370db;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
 .signout-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
 }
 
-@media (max-width: 480px) {
-  .auth-container {
+@media (max-width: 768px) {
+  .auth-content {
+    margin: 0.5rem;
     padding: 1.5rem;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
+
+
+  .auth-mobile {
+    align-items: flex-start;
+    padding-top: max(2rem, env(safe-area-inset-top));
+  }
+
+  .auth-header h2 {
+    font-size: 1.5rem !important;
+  }
+
+  .auth-subtitle {
+    font-size: 0.9rem !important;
+  }
+
+  input,
+  .primary-btn,
+  .google-btn {
+    font-size: 1rem !important;
+    padding: 0.75rem !important;
+    height: 48px;
+  }
+
+  .form-group {
+    margin-bottom: 1rem;
+  }
+
+  label {
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+  }
+}
+
+.login-prompt {
+  margin-bottom: 25px;
+  cursor: pointer;
+  padding: 1rem;
+  background: rgba(42, 42, 68, 0.5);
+  border-radius: 12px;
+  border: 1px solid rgba(106, 90, 205, 0.2);
+  transition: all 0.3s ease;
+}
+
+@media (max-width: 768px) {
+  .login-prompt {
+    margin: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 100px;
+  }
+
+  .login-prompt h3 {
+    font-size: 1.1rem;
+  }
+
+  .login-prompt p {
+    font-size: 0.9rem;
+  }
+
+  .maybe-later-btn {
+    margin-top: 0.75rem;
+    padding: 0.5rem;
+  }
+
+  .close-btn {
+    padding: 0.75rem;
+  }
+}
+
+.login-prompt-content {
+  text-align: center;
+  position: relative;
+}
+
+.login-prompt-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.login-prompt h3 {
+  color: #fff;
+  margin: 0 0 0.5rem;
+  font-size: 1.2rem;
+}
+
+.login-prompt p {
+  color: #9370db;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.maybe-later-btn {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  background: none;
+  border: none;
+  color: #9370db;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.maybe-later-btn:hover {
+  color: #fff;
+}
+
+.close-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  color: #9370db;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  line-height: 1;
+  transition: all 0.3s ease;
+}
+
+.close-btn:hover {
+  color: #fff;
+  transform: scale(1.1);
 }
 </style>
