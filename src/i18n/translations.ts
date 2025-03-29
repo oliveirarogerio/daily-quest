@@ -50,6 +50,8 @@ export const translations = {
       pause: 'Pause',
       reset: 'Reset',
       timeSpent: 'Time spent',
+      customTime: 'Custom Time',
+      minutes: 'minutes',
     },
     notifications: {
       newQuest: 'New Quest Added!',
@@ -116,6 +118,8 @@ export const translations = {
       pause: 'Pausar',
       reset: 'Reiniciar',
       timeSpent: 'Tempo gasto',
+      customTime: 'Tempo Personalizado',
+      minutes: 'minutos',
     },
     notifications: {
       newQuest: 'Nova Missão Adicionada!',

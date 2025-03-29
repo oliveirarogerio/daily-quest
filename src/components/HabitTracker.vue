@@ -38,13 +38,15 @@ const { userLanguage, t } = useI18n();
 // Timer state
 const {
   state: timerState,
+  formattedTime,
   setTimerMode,
   startTimer,
   pauseTimer,
   stopTimer,
   selectHabit: selectHabitForTimer,
   closeTimer,
-  setOnTimerCompleted
+  setOnTimerCompleted,
+  setCustomTime
 } = useTimer();
 
 // Wrapper function to handle adding a habit
@@ -74,19 +76,6 @@ const handleToggleHabit = async (habit: Habit) => {
     removeXP(Math.abs(xpChange));
     displayNotification(t('notifications.xpLost', { amount: Math.abs(xpChange) }));
   }
-};
-
-// Level up function
-const levelUp = () => {
-  const remainingXP = xp.value - xpToNextLevel.value;
-  level.value++;
-  xp.value = remainingXP;
-
-  // Show level up animation
-  showLevelUpAnimation.value = true;
-  setTimeout(() => {
-    showLevelUpAnimation.value = false;
-  }, 3000);
 };
 
 // Initialize and setup
@@ -164,7 +153,7 @@ setOnTimerCompleted(() => {
             </div>
 
             <div class="timer-display" :class="{ 'timer-running': timerState.isRunning }">
-              {{ timerState.formattedTime }}
+              {{ formattedTime }}
             </div>
 
             <div class="timer-modes">
@@ -189,6 +178,23 @@ setOnTimerCompleted(() => {
               >
                 {{ t('timer.longBreak') }}
               </button>
+            </div>
+
+            <!-- Custom Time Input -->
+            <div class="custom-time">
+              <label for="customTime">{{ t('timer.customTime') }}</label>
+              <div class="custom-time-input">
+                <input
+                  type="number"
+                  id="customTime"
+                  :value="timerState.customMinutes"
+                  min="1"
+                  max="180"
+                  @change="(e: Event) => setCustomTime(parseInt((e.target as HTMLInputElement).value))"
+                  :disabled="timerState.isRunning"
+                />
+                <span class="minutes-label">{{ t('timer.minutes') }}</span>
+              </div>
             </div>
 
             <div class="timer-controls">
@@ -1403,5 +1409,52 @@ setOnTimerCompleted(() => {
     from { opacity: 1; transform: translate(-50%, 0); }
     to { opacity: 0; transform: translate(-50%, 100%); }
   }
+}
+
+/* Custom Time Input Styles */
+.custom-time {
+  margin: 20px 0;
+  text-align: center;
+}
+
+.custom-time label {
+  display: block;
+  color: #9370db;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.custom-time-input {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.custom-time-input input {
+  background: rgba(106, 90, 205, 0.1);
+  border: 1px solid rgba(106, 90, 205, 0.3);
+  color: #fff;
+  padding: 8px;
+  border-radius: 8px;
+  width: 80px;
+  text-align: center;
+  font-size: 1rem;
+}
+
+.custom-time-input input:focus {
+  outline: none;
+  border-color: #6a5acd;
+  box-shadow: 0 0 0 2px rgba(106, 90, 205, 0.2);
+}
+
+.custom-time-input input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.minutes-label {
+  color: #9370db;
+  font-size: 0.9rem;
 }
 </style>
