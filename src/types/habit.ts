@@ -31,6 +31,17 @@ export interface PlayerState {
   xp: number
   rank: Rank
   lastUpdated?: Date
+  totalXPEarned: number
+  recentXPGain: number
+  hasUnreadLevelUp: boolean
+  hasUnreadRankUp: boolean
+  streakMultiplier: number
+  longestStreak: number
+  streakProtection?: number
+  titles?: string[]
+  selectedTitle?: string
+  badges?: string[]
+  selectedBadge?: string
 }
 
 export type TimerMode = 'pomodoro' | 'shortBreak' | 'longBreak' | 'custom'
@@ -43,6 +54,13 @@ export interface TimerState {
   minutes: number
   mode: TimerMode
   customMinutes: number
+  completedSessions?: number
+  pomodoroGoal?: number
+  longBreakInterval?: number
+  autoStartBreaks?: boolean
+  autoStartPomodoros?: boolean
+  soundEnabled?: boolean
+  soundVolume?: number
 }
 
 export interface NotificationState {
