@@ -1,18 +1,32 @@
 <script setup lang="ts">
 import HabitTracker from './components/HabitTracker.vue'
 import Auth from './components/Auth.vue'
+import BackgroundAnimation from './components/BackgroundAnimation.vue'
+import Notification from './components/Notification.vue'
+import LevelUpAnimation from './components/LevelUpAnimation.vue'
+import { usePlayer } from './composables/usePlayer';
+import { useNotification } from './composables/useNotification';
 
+const { showLevelUpAnimation } = usePlayer();
+const { state: notificationState } = useNotification();
 
 </script>
 
 <template>
   <div class="app-container">
     <div class="background-pattern"></div>
+
+
+
     <div class="content">
-      <div class="header">
-        <h1>DAILY QUEST</h1>
+      <div class="header rpg-window">
+        <div class="rpg-window-header">
+          <h1>DAILY QUEST</h1>
+        </div>
         <p class="subtitle">Level up your life, one quest at a time</p>
       </div>
+
+      <BackgroundAnimation />
 
       <div class="main-content">
         <div class="habit-tracker-container">
@@ -22,8 +36,18 @@ import Auth from './components/Auth.vue'
         <div class="auth-section">
           <Auth />
         </div>
+
       </div>
     </div>
+
+    <Notification
+      :show="notificationState.show"
+      :message="notificationState.message"
+      :type="notificationState.type"
+    />
+    <LevelUpAnimation :show="showLevelUpAnimation" />
+
+
   </div>
 </template>
 
@@ -38,18 +62,22 @@ body,
   height: 100%;
   width: 100%;
   overflow-x: hidden;
-  font-family: 'Arial', sans-serif;
+  font-family: var(--font-family);
 }
 
 body {
   display: flex;
   justify-content: center;
   align-items: center;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  transition: background-color var(--transition-base), color var(--transition-base);
 }
 
 .header {
   margin-top: 100px;
   margin-bottom: 25px;
+  overflow: visible;
 }
 
 #app {
@@ -61,14 +89,15 @@ body {
 
 .app-container {
   position: relative;
-  width: 500px;
+  width: 100%;
   min-height: 100vh;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
   flex-direction: column;
   padding: 0;
   margin: 0;
+  overflow-x: hidden;
 }
 
 .background-pattern {
@@ -78,20 +107,21 @@ body {
   width: 100%;
   height: 100%;
   background: url('./assets/background-pattern.svg') repeat;
-  background-color: #0a0a14;
+  background-color: var(--color-background);
   opacity: 0.8;
-  z-index: -1;
+  z-index: var(--z-index-background);
+  transition: background-color var(--transition-base);
 }
 
 .content {
   position: relative;
-  z-index: 1;
+  z-index: var(--z-index-base);
   max-width: 1280px;
   width: 100%;
   margin: 0;
   padding: 0 1rem;
   font-weight: normal;
-  color: #fff;
+  color: var(--color-text);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -100,12 +130,124 @@ body {
   box-sizing: border-box;
 }
 
+.theme-controls {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: var(--z-index-above);
+}
+
+.header h1 {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: var(--font-size-xl);
+  letter-spacing: 2px;
+}
+
+.subtitle {
+  font-size: var(--font-size-md);
+  margin: var(--spacing-md) 0 0;
+  opacity: 0.9;
+}
+
+/* Pixel art style specific */
+.pixel-style .header h1 {
+  font-size: var(--font-size-lg);
+  letter-spacing: 1px;
+}
+
+.pixel-style .subtitle {
+  font-size: var(--font-size-sm);
+}
+
+.pixel-style .rpg-window {
+  image-rendering: pixelated;
+}
+
 @media (max-width: 768px) {
   .content {
-    padding-top: 100px;
-    padding-bottom: 100px;
-    margin-top: 100px;
-    margin-bottom: 100px;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+  }
+
+  .header {
+    margin-top: max(40px, env(safe-area-inset-top));
+    margin-bottom: 20px;
+    padding: 0 20px;
+  }
+
+  h1 {
+    font-size: var(--font-size-lg);
+    letter-spacing: 1px;
+  }
+
+  .subtitle {
+    font-size: var(--font-size-sm);
+    margin-top: var(--spacing-sm);
+    padding: 0 20px;
+  }
+
+  .main-content {
+    width: 100%;
+    gap: 0;
+  }
+
+  .habit-tracker-container {
+    width: 100%;
+    margin: 0;
+  }
+
+  .auth-section {
+    width: 100%;
+    max-width: none;
+    padding: 16px;
+    margin-top: 0;
+  }
+
+  .theme-controls {
+    top: 10px;
+    right: 10px;
+  }
+}
+
+/* Landscape mode improvements */
+@media (max-width: 768px) and (orientation: landscape) {
+  .header {
+    margin-top: max(20px, env(safe-area-inset-top));
+    margin-bottom: 16px;
+  }
+
+  .content {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    padding: 16px;
+    gap: 20px;
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  .header {
+    flex: 0 0 300px;
+    text-align: left;
+    margin: 0;
+  }
+
+  .main-content {
+    flex: 1;
+    height: 100%;
+    overflow-y: auto;
+  }
+}
+
+/* Safe area improvements */
+@supports (padding: max(0px)) {
+  .app-container {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 }
 
@@ -282,8 +424,6 @@ main > * {
   width: 100%;
 }
 
-
-
 .debug-info {
   position: fixed;
   bottom: 0;
@@ -306,29 +446,6 @@ main > * {
   }
   100% {
     opacity: 0.6;
-  }
-}
-
-@media (max-width: 768px) {
-  .content {
-    padding: 1rem;
-  }
-
-  h1 {
-    font-size: 2rem;
-  }
-
-  .subtitle {
-    font-size: 1rem;
-  }
-
-  .main-content {
-    gap: 1rem;
-  }
-
-  .auth-section {
-    margin-top: 1rem;
-    padding-top: 1rem;
   }
 }
 </style>
