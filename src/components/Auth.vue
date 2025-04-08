@@ -1,4 +1,11 @@
 <script setup lang="ts">
+/**
+ * Auth.vue
+ *
+ * Authentication component for user login and registration.
+ * Handles user authentication with email/password and Google sign-in options,
+ * form validation, error handling, user feedback, and new player creation in Firestore.
+ */
 import { ref } from 'vue'
 import { useCurrentUser } from 'vuefire'
 import {
@@ -12,9 +19,13 @@ import {
 import { doc, setDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useI18n } from '../composables/useI18n'
+import { useNotification } from '../composables/useNotification'
 
 const { t } = useI18n()
-const user = useCurrentUser()
+const { displayNotification } = useNotification()
+const user = useCurrentUser() // Current user from VueFire
+
+// Form state
 const email = ref('')
 const name = ref('')
 const password = ref('')
@@ -22,36 +33,54 @@ const confirmPassword = ref('')
 const isRegistering = ref(false)
 const error = ref('')
 const isLoading = ref(false)
-const showLoginPrompt = ref(true)
-const showAuthForm = ref(false)
+const showLoginPrompt = ref(false)
+const showAuthForm = ref(true)
 const auth = getAuth()
 
+/**
+ * Handles the authentication process for both login and registration.
+ * Validates form inputs, calls appropriate Firebase auth methods,
+ * creates player data for new users, and provides feedback via notifications.
+ */
 const handleAuth = async () => {
   try {
     isLoading.value = true
     error.value = ''
 
+    // Validate password match for registration
     if (isRegistering.value && password.value !== confirmPassword.value) {
       error.value = t('auth.passwordMismatch')
       return
     }
 
+    // Select appropriate auth function based on mode
     const authFunction = isRegistering.value
       ? createUserWithEmailAndPassword
       : signInWithEmailAndPassword
     const result = await authFunction(auth, email.value, password.value)
 
+    // For new users, create player data in Firestore
     if (isRegistering.value) {
       await createPlayer(result)
+      displayNotification(t('auth.accountCreated') || 'Account created successfully!')
+    } else {
+      displayNotification(t('auth.loginSuccess') || 'Login successful!')
     }
     resetForm()
   } catch (e: any) {
     error.value = e.message
+    displayNotification(e.message, 'error')
   } finally {
     isLoading.value = false
   }
 }
 
+/**
+ * Creates a new player document in Firestore for registered users.
+ * Sets up initial player state with level 1, 0 XP, and Rank E.
+ *
+ * @param {Object} result - Firebase auth result object containing user info
+ */
 async function createPlayer(result: any) {
   const playerRef = doc(db, 'players', result.user.uid)
   await setDoc(playerRef, {
@@ -64,19 +93,29 @@ async function createPlayer(result: any) {
   })
 }
 
+/**
+ * Handles Google Sign-In authentication.
+ * Uses Firebase popup authentication flow with Google provider.
+ */
 const handleGoogleSignIn = async () => {
   try {
     isLoading.value = true
     const provider = new GoogleAuthProvider()
     await signInWithPopup(auth, provider)
+    displayNotification(t('auth.loginSuccess') || 'Login successful!')
     resetForm()
-  } catch (e) {
+  } catch (e: any) {
     console.error('Google Sign-In Error:', e)
+    displayNotification(e.message, 'error')
   } finally {
     isLoading.value = false
   }
 }
 
+/**
+ * Resets the form state and hides the auth form.
+ * Called after successful authentication or when dismissing the form.
+ */
 const resetForm = () => {
   email.value = ''
   password.value = ''
@@ -86,13 +125,19 @@ const resetForm = () => {
   showAuthForm.value = false
 }
 
-const handleSignOut = () => signOut(auth)
-
-const startAuth = () => {
-  showLoginPrompt.value = false
-  showAuthForm.value = true
+/**
+ * Handles user sign out.
+ * Signs out from Firebase Auth and displays success notification.
+ */
+const handleSignOut = () => {
+  signOut(auth)
+  displayNotification(t('auth.logoutSuccess') || 'Logged out successfully!')
 }
 
+/**
+ * Dismisses the auth component without taking action.
+ * Hides both the login prompt and auth form.
+ */
 const dismissAuth = () => {
   showLoginPrompt.value = false
   showAuthForm.value = false
@@ -102,22 +147,6 @@ const dismissAuth = () => {
 <template>
   <div class="auth-container">
     <template v-if="!user">
-      <!-- Login Prompt -->
-      <div v-if="showLoginPrompt" class="login-prompt">
-        <div class="login-prompt-content">
-          <button
-            class="auth-btn register-btn"
-            @click.stop="
-              () => {
-                startAuth()
-              }
-            "
-          >
-            {{ t('auth.login') }}
-          </button>
-        </div>
-      </div>
-
       <!-- Auth Form -->
       <div v-if="showAuthForm" class="auth-mobile">
         <div class="auth-content">
@@ -126,7 +155,6 @@ const dismissAuth = () => {
             <p class="auth-subtitle">
               {{ isRegistering ? t('auth.createAccount') : t('auth.welcomeBack') }}
             </p>
-            <button class="close-btn" @click="dismissAuth">×</button>
           </div>
 
           <form @submit.prevent="handleAuth" class="auth-form">
@@ -223,21 +251,17 @@ const dismissAuth = () => {
     </template>
 
     <div v-else class="user-info">
+      <div class="user-avatar">
+        <img
+          :src="user.photoURL || '../assets/hunter-icon.svg'"
+          alt="User Avatar"
+          class="avatar-img"
+        />
+      </div>
       <div class="user-details">
         <p class="user-name">{{ user.displayName || user.email }}</p>
         <button class="signout-btn" @click="handleSignOut">{{ t('auth.signOut') }}</button>
       </div>
-    </div>
-
-    <div class="footer">
-      <a
-        href="https://github.com/oliveirarogerio"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="footer-link"
-      >
-        {{ t('footer.madeBy') }}
-      </a>
     </div>
   </div>
 </template>
@@ -247,26 +271,26 @@ const dismissAuth = () => {
   width: 100%;
   max-width: 400px;
   margin: 0 auto;
-  padding: 16px;
+  padding: 0;
   position: relative;
   z-index: 5;
-  min-height: 80px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  font-family: 'Roboto', sans-serif;
 }
 
 .user-info {
   background: linear-gradient(135deg, rgba(28, 28, 45, 0.95), rgba(20, 20, 35, 0.95));
   border: 1px solid rgba(106, 90, 205, 0.3);
   border-radius: 12px;
-  padding: 16px;
+  padding: 20px;
   backdrop-filter: blur(10px);
   box-shadow:
     0 4px 20px rgba(0, 0, 0, 0.3),
     0 0 40px rgba(106, 90, 205, 0.1);
   position: relative;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
 .user-info::before {
@@ -284,6 +308,22 @@ const dismissAuth = () => {
   pointer-events: none;
 }
 
+.user-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid #6a5acd;
+  box-shadow: 0 0 15px rgba(106, 90, 205, 0.5);
+  flex-shrink: 0;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 @keyframes gradientFlow {
   0%, 100% { background-position: 0% 0%; }
   50% { background-position: 100% 100%; }
@@ -291,16 +331,16 @@ const dismissAuth = () => {
 
 .user-details {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
 }
 
 .user-name {
   color: #fff;
   font-weight: 500;
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 1rem;
   text-shadow: 0 0 10px rgba(106, 90, 205, 0.5);
 }
 
@@ -315,6 +355,7 @@ const dismissAuth = () => {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-weight: 500;
   white-space: nowrap;
+  align-self: flex-start;
 }
 
 .signout-btn:hover {
@@ -329,23 +370,14 @@ const dismissAuth = () => {
 
 /* Auth Form Styling */
 .auth-mobile {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(20, 20, 35, 0.98);
-  backdrop-filter: blur(20px);
-  z-index: 100;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
 }
 
 .auth-content {
   width: 100%;
-  max-width: 400px;
   background: linear-gradient(135deg, rgba(28, 28, 45, 0.95), rgba(20, 20, 35, 0.95));
   border-radius: 16px;
   padding: 24px;
@@ -385,6 +417,7 @@ const dismissAuth = () => {
   font-weight: 600;
   text-shadow: 0 0 20px rgba(106, 90, 205, 0.5);
   letter-spacing: 1px;
+  font-family: 'Roboto', sans-serif;
 }
 
 .auth-subtitle {
@@ -414,6 +447,7 @@ const dismissAuth = () => {
   color: #fff;
   font-size: 1rem;
   transition: all 0.3s ease;
+  font-family: 'Roboto', sans-serif;
 }
 
 .form-group input:focus {
@@ -436,6 +470,7 @@ const dismissAuth = () => {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
+  font-family: 'Roboto', sans-serif;
 }
 
 .primary-btn::before {
@@ -478,6 +513,7 @@ const dismissAuth = () => {
   cursor: pointer;
   transition: all 0.3s ease;
   margin-top: 16px;
+  font-family: 'Roboto', sans-serif;
 }
 
 .google-btn:hover {
@@ -526,6 +562,7 @@ const dismissAuth = () => {
   padding: 0;
   font-size: 0.9rem;
   transition: all 0.3s ease;
+  font-family: 'Roboto', sans-serif;
 }
 
 .toggle-btn:hover {
@@ -544,44 +581,48 @@ const dismissAuth = () => {
   text-align: center;
 }
 
-.close-btn {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  background: none;
-  border: none;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 24px;
-  cursor: pointer;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: all 0.3s ease;
+@media (max-width: 768px) {
+  .auth-container {
+    padding: 0;
+  }
+
+  .auth-content {
+    padding: 20px;
+  }
+
+  .auth-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .form-group input,
+  .primary-btn,
+  .google-btn {
+    padding: 12px;
+  }
 }
 
-.close-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-}
+@media (max-width: 480px) {
+  .auth-content {
+    padding: 16px;
+  }
 
-.footer {
-  margin-top: auto;
-  padding-top: 16px;
-  text-align: center;
-}
+  .auth-header h2 {
+    font-size: 1.3rem;
+  }
 
-.footer-link {
-  color: rgba(255, 255, 255, 0.7);
-  text-decoration: none;
-  font-size: 0.9rem;
-  transition: all 0.3s ease;
-}
+  .auth-subtitle {
+    font-size: 0.85rem;
+  }
 
-.footer-link:hover {
-  color: #6a5acd;
-  text-shadow: 0 0 10px rgba(106, 90, 205, 0.5);
+  .form-group label {
+    font-size: 0.85rem;
+  }
+
+  .form-group input,
+  .primary-btn,
+  .google-btn {
+    padding: 10px;
+    font-size: 0.9rem;
+  }
 }
 </style>
