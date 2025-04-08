@@ -1,17 +1,37 @@
+/**
+ * Player Progression System Composable
+ *
+ * This composable manages the player's progression system, including:
+ * - XP and level management
+ * - Rank progression
+ * - Streak tracking and multipliers
+ * - Achievement tracking
+ * - Persistence to localStorage and Firebase
+ * - Visual feedback (animations, notifications)
+ */
 import { ref, computed, watch, reactive, nextTick } from 'vue'
 import { useCurrentUser } from 'vuefire'
 import { doc, setDoc, getDoc, updateDoc, Timestamp, arrayUnion } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useFirebaseError } from './useFirebaseError'
 import { useNotification } from './useNotification'
-import type { PlayerState, Rank, Difficulty } from '../types/habit'
+import type { PlayerState, Rank } from '../types/habit'
 
 export function usePlayer() {
   const user = useCurrentUser()
   const { wrapFirebaseOperation, isLoading } = useFirebaseError()
   const { displayNotification } = useNotification()
 
-  // Initialize state from localStorage or defaults
+  /**
+   * Initializes player state from localStorage or defaults
+   *
+   * This function:
+   * 1. Attempts to load saved player state from localStorage
+   * 2. Falls back to default values if no saved state exists or if an error occurs
+   * 3. Returns a complete player state object with all necessary properties
+   *
+   * @returns {Object} Initial player state with all required properties
+   */
   const loadInitialState = () => {
     try {
       const savedLevel = localStorage.getItem('level')
@@ -64,16 +84,34 @@ export function usePlayer() {
   const showLevelUpAnimation = ref(false)
   const showRankUpAnimation = ref(false)
 
+  /**
+   * Computed property that calculates XP required for the next level
+   *
+   * The XP requirement increases with each level and scales more aggressively
+   * at higher levels to maintain progression challenge.
+   */
   const xpToNextLevel = computed(() => {
     const scalingFactor = level.value > 50 ? 1.5 : level.value > 25 ? 1.2 : 1.0
     return Math.floor(150 * (1 + level.value * 0.1) * scalingFactor)
   })
 
+  /**
+   * Computed property that calculates progress percentage toward next level
+   *
+   * @returns {number} Percentage of progress toward next level (0-100)
+   */
   const xpPercentage = computed(() => {
     return Math.min((xp.value / xpToNextLevel.value) * 100, 100)
   })
 
+  /**
+   * Array of all possible ranks in ascending order
+   */
   const ranks = ['E', 'D', 'C', 'B', 'A', 'S', 'SS', 'SSS'] as const
+
+  /**
+   * Level thresholds required to achieve each rank
+   */
   const rankThresholds: Record<Rank, number> = {
     E: 1, // Starting rank
     D: 10, // Level 10
@@ -85,6 +123,11 @@ export function usePlayer() {
     SSS: 100, // Level 100
   }
 
+  /**
+   * Computed property that determines current rank based on level
+   *
+   * @returns {Rank} The player's current rank
+   */
   const rank = computed(() => {
     for (let i = ranks.length - 1; i >= 0; i--) {
       if (level.value >= rankThresholds[ranks[i]]) {
@@ -94,14 +137,21 @@ export function usePlayer() {
     return 'E' as Rank
   })
 
-  const calculateXPMultiplier = (streak: number, difficulty: Difficulty): number => {
-    const difficultyMultiplier =
-      {
-        easy: 0.8,
-        normal: 1.0,
-        hard: 1.5,
-        epic: 2.5,
-      }[difficulty] || 1.0
+  /**
+   * Calculates XP multiplier based on streak and rank
+   *
+   * This function determines how much bonus XP a player receives based on:
+   * 1. Streak length - longer streaks give progressively higher bonuses
+   * 2. Current rank - higher ranks receive small percentage boosts
+   *
+   * The multiplier is applied to the base XP amount in the addXP function.
+   * The streak bonus has three tiers with increasing returns.
+   *
+   * @param {number} streak - The current streak count for the habit
+   * @returns {number} A multiplier to apply to the base XP amount
+   */
+  const calculateXPMultiplier = (streak: number): number => {
+    const difficultyMultiplier = 1.0
 
     // Enhanced streak bonus with progressive scaling:
     // - First 5 days: 5% bonus per day
@@ -128,19 +178,39 @@ export function usePlayer() {
     return difficultyMultiplier * (1 + streakBonus) * rankBoost
   }
 
+  /**
+   * Adds XP to the player with multipliers and updates state
+   *
+   * This function handles the complete process of awarding XP to the player:
+   * 1. Applies multipliers based on streak and rank
+   * 2. Updates the XP total and related stats
+   * 3. Checks for level ups and rank changes
+   * 4. Triggers appropriate animations and notifications
+   * 5. Saves the updated state to localStorage and Firebase
+   * 6. Dispatches events to update UI components
+   *
+   * The function ensures proper reactivity by using Vue refs and nextTick,
+   * and includes additional event dispatching to coordinate with the GameStatusBar.
+   *
+   * @param {number} amount - Base XP amount to add
+   * @param {string} source - Source of the XP (for tracking)
+   * @param {number} streak - Current streak to calculate multipliers
+   * @param {number} x - X coordinate for animation
+   * @param {number} y - Y coordinate for animation
+   * @returns {Promise<number>} The final XP amount added after multipliers
+   */
   const addXP = async (
     amount: number,
     source: string = 'habit',
     streak: number = 0,
-    difficulty: Difficulty = 'normal',
     x: number = 0,
     y: number = 0,
   ) => {
     return await wrapFirebaseOperation(async () => {
-      console.log('🔍 [usePlayer] addXP called with:', { amount, source, streak, difficulty, x, y })
+      console.log('🔍 [usePlayer] addXP called with:', { amount, source, streak, x, y })
 
       // Apply multipliers
-      const multiplier = calculateXPMultiplier(streak, difficulty)
+      const multiplier = calculateXPMultiplier(streak)
       const finalAmount = Math.floor(amount * multiplier)
       console.log(
         '🔍 [usePlayer] Calculated finalAmount:',
@@ -150,7 +220,6 @@ export function usePlayer() {
       )
 
       // Record history
-
       totalXPEarned.value += finalAmount
       recentXPGain.value = finalAmount
       console.log('🔍 [usePlayer] Updated recentXPGain to:', recentXPGain.value)
@@ -163,8 +232,6 @@ export function usePlayer() {
       // Calculate new streak multiplier (used for future calculations)
       streakMultiplier.value = 1 + streak * 0.05
 
-      // Check for milestone achievements
-
       // Update XP and check for level up
       const oldRank = rank.value
       console.log('🔍 [usePlayer] Before XP update:', { currentXP: xp.value, toAdd: finalAmount })
@@ -174,24 +241,24 @@ export function usePlayer() {
 
       console.log('🔍 [usePlayer] After XP update:', { newXP: xp.value })
 
-      // Force update computed properties by touching the ref
+      // Force update computed properties
       nextTick(() => {
-        // Recalculate and update xpPercentage as it's a computed property
+        // Recalculate and update xpPercentage
         const newPercentage = Math.min((xp.value / xpToNextLevel.value) * 100, 100)
         console.log('🔍 [usePlayer] Forcing xpPercentage update:', newPercentage)
-      })
 
-      // Dispatch a custom DOM event to force UI updates
-      try {
-        console.log('🔥 [usePlayer] Dispatching xp-updated event')
+        // Dispatch events for UI updates
         window.dispatchEvent(
           new CustomEvent('xp-updated', {
-            detail: { xp: xp.value, xpPercentage: xpPercentage.value },
+            detail: {
+              xp: xp.value,
+              xpPercentage: newPercentage,
+              forceUpdate: true,
+              timestamp: Date.now(),
+            },
           }),
         )
-      } catch (error) {
-        console.error('Error dispatching event:', error)
-      }
+      })
 
       await checkLevelUp()
 
@@ -212,15 +279,17 @@ export function usePlayer() {
       await savePlayerState()
       console.log('🔍 [usePlayer] Player state saved after XP addition')
 
-      // Dispatch another event after all async operations
-      try {
-        setTimeout(() => {
-          console.log('🔥 [usePlayer] Dispatching xp-updated-complete event')
-          window.dispatchEvent(new CustomEvent('xp-updated-complete', { detail: null }))
-        }, 100)
-      } catch (error) {
-        console.error('Error dispatching event:', error)
-      }
+      // Dispatch completion event
+      nextTick(() => {
+        window.dispatchEvent(
+          new CustomEvent('xp-updated-complete', {
+            detail: {
+              timestamp: Date.now(),
+              finalXP: xp.value,
+            },
+          }),
+        )
+      })
 
       // Return the amount for UI updates
       return finalAmount
@@ -428,6 +497,176 @@ export function usePlayer() {
     }, 'loadPlayerState')
   }
 
+  /**
+   * Track habit completion for achievement system
+   * @param habitData Information about the completed habit
+   */
+  const trackHabitCompletion = async (habitData: { streak: number; id: string }) => {
+    return await wrapFirebaseOperation(async () => {
+      console.log('🔍 [usePlayer] trackHabitCompletion called with:', habitData)
+
+      // Update longest streak if needed
+      if (habitData.streak > longestStreak.value) {
+        longestStreak.value = habitData.streak
+        await savePlayerState()
+      }
+
+      // If user is logged in, record this completion in their player document
+      if (user.value) {
+        const playerRef = doc(db, 'players', user.value.uid)
+        const playerDoc = await getDoc(playerRef)
+
+        if (playerDoc.exists()) {
+          // Update stats in player document
+          await updateDoc(playerRef, {
+            completions: arrayUnion({
+              habitId: habitData.id,
+              timestamp: Timestamp.now(),
+              streak: habitData.streak,
+            }),
+            // Update habit-specific stats
+            [`habitStats.${habitData.id}.completions`]: playerDoc.data().habitStats?.[habitData.id]
+              ?.completions
+              ? playerDoc.data().habitStats[habitData.id].completions + 1
+              : 1,
+            [`habitStats.${habitData.id}.lastCompleted`]: Timestamp.now(),
+            [`habitStats.${habitData.id}.currentStreak`]: habitData.streak,
+            lastUpdated: new Date(),
+          })
+        } else {
+          // Create new document with initial stats
+          await setDoc(playerRef, {
+            level: level.value,
+            xp: xp.value,
+            rank: currentRank.value,
+            completions: [
+              {
+                habitId: habitData.id,
+                timestamp: Timestamp.now(),
+                streak: habitData.streak,
+              },
+            ],
+            habitStats: {
+              [habitData.id]: {
+                completions: 1,
+                lastCompleted: Timestamp.now(),
+                currentStreak: habitData.streak,
+              },
+            },
+            lastUpdated: new Date(),
+          })
+        }
+      }
+
+      // Check for achievement milestones based on completion
+      // This is where additional achievement logic can be implemented
+
+      return true
+    }, 'trackHabitCompletion')
+  }
+
+  /**
+   * Track time spent on habits for achievements and stats
+   * @param minutes Minutes spent on the habit
+   * @param habitId ID of the habit being tracked
+   */
+  const trackTimeSpent = async (minutes: number, habitId: string) => {
+    return await wrapFirebaseOperation(async () => {
+      console.log('🔍 [usePlayer] trackTimeSpent called with:', { minutes, habitId })
+
+      // If user is logged in, update their time tracking stats
+      if (user.value) {
+        const playerRef = doc(db, 'players', user.value.uid)
+        const playerDoc = await getDoc(playerRef)
+
+        if (playerDoc.exists()) {
+          // Update time stats in player document
+          const currentData = playerDoc.data()
+          const totalTimeForHabit = currentData.habitStats?.[habitId]?.timeSpent || 0
+          const newTotalTime = totalTimeForHabit + minutes
+
+          await updateDoc(playerRef, {
+            [`habitStats.${habitId}.timeSpent`]: newTotalTime,
+            totalTimeSpent: (currentData.totalTimeSpent || 0) + minutes,
+            lastUpdated: new Date(),
+          })
+
+          // Check for time-based achievements
+          // Logic for time-based achievements could be implemented here
+        } else {
+          // Create new document with initial time stats
+          await setDoc(playerRef, {
+            level: level.value,
+            xp: xp.value,
+            rank: currentRank.value,
+            habitStats: {
+              [habitId]: {
+                timeSpent: minutes,
+              },
+            },
+            totalTimeSpent: minutes,
+            lastUpdated: new Date(),
+          })
+        }
+      }
+
+      return true
+    }, 'trackTimeSpent')
+  }
+
+  /**
+   * Triggers XP gain/loss animation at specified coordinates
+   *
+   * This function handles the visual feedback of XP changes by:
+   * 1. Updating the recentXPGain value to show in GameStatusBar
+   * 2. Dispatching a custom event for the XP Animation component
+   * 3. Providing coordinates for the animation's start and end points
+   *
+   * The animation events are picked up by the XPAnimation component which
+   * creates the floating number effect and animates it toward the XP bar.
+   *
+   * Note: This function does NOT actually add/remove XP - it only triggers
+   * the visual animation. The actual XP changes are handled by addXP/removeXP.
+   *
+   * @param amount The amount of XP to show in the animation
+   * @param source The source of the XP (for analytics)
+   * @param x The x-coordinate where the animation should start
+   * @param y The y-coordinate where the animation should start
+   * @returns The amount displayed in the animation
+   */
+  const triggerXPAnimation = (
+    amount: number,
+    source: string = 'habit',
+    x: number = window.innerWidth / 2,
+    y: number = window.innerHeight / 2,
+  ) => {
+    console.log('🔍 [usePlayer] Triggering XP animation:', { amount, source, x, y })
+
+    // Set recentXPGain to trigger animation in GameStatusBar
+    recentXPGain.value = amount
+
+    // Dispatch custom event for XP Animation component
+    try {
+      window.dispatchEvent(
+        new CustomEvent('xp-animation', {
+          detail: {
+            show: true,
+            amount,
+            sourceX: x,
+            sourceY: y,
+            targetX: window.innerWidth - 80, // Target the XP bar in GameStatusBar
+            targetY: 40, // Approximate position of XP bar
+            timestamp: Date.now(), // Ensure each event is unique
+          },
+        }),
+      )
+    } catch (error) {
+      console.error('Error dispatching XP animation event:', error)
+    }
+
+    return amount
+  }
+
   return {
     level,
     xp,
@@ -449,5 +688,8 @@ export function usePlayer() {
     acknowledgeRank,
     longestStreak,
     streakMultiplier,
+    trackHabitCompletion,
+    trackTimeSpent,
+    triggerXPAnimation,
   }
 }
