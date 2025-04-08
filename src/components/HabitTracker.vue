@@ -427,7 +427,6 @@ onMounted(async () => {
   padding: 10px 8px;
   min-height: 100vh;
   overflow-x: hidden;
-  font-family: 'Roboto', sans-serif;
   touch-action: manipulation;
   -webkit-overflow-scrolling: touch;
   padding-bottom: calc(80px + env(safe-area-inset-bottom, 0));
@@ -526,10 +525,9 @@ onMounted(async () => {
 
 @media (min-width: 768px) {
   .habit-tracker {
-    padding: 16px;
     padding-bottom: 100px;
-    width: 90%;
-    max-width: 600px;
+    width: 90%; 
+    max-width: 600px; 
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -570,10 +568,5 @@ onMounted(async () => {
   .habit-tracker {
     max-width: 700px;
   }
-}
-
-/* Apply Roboto font to all elements */
-:root {
-  font-family: 'Roboto', 'Courier New', monospace;
 }
 </style>
