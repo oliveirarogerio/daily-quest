@@ -93,7 +93,6 @@ const handleSubmit = () => {
   align-items: center;
   z-index: 1000;
   backdrop-filter: blur(10px);
-  font-family: 'Roboto', sans-serif;
 }
 
 .modal-content {
@@ -119,7 +118,6 @@ const handleSubmit = () => {
   color: #fff;
   font-size: 1.4rem;
   text-shadow: 0 0 10px rgba(106, 90, 205, 0.5);
-  font-family: 'Roboto', sans-serif;
   font-weight: 500;
 }
 
@@ -162,7 +160,6 @@ const handleSubmit = () => {
   color: #fff;
   font-size: 1rem;
   transition: all 0.3s ease;
-  font-family: 'Roboto', sans-serif;
 }
 
 .quest-input:focus {
@@ -184,7 +181,6 @@ const handleSubmit = () => {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
-  font-family: 'Roboto', sans-serif;
 }
 
 .add-button:disabled {
