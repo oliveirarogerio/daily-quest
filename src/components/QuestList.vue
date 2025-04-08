@@ -192,7 +192,6 @@ const handleTouchEnd = async (event: TouchEvent) => {
     0 0 0 1px rgba(106, 90, 205, 0.2);
   position: relative;
   overflow: hidden;
-  font-family: 'Roboto', sans-serif;
   border: 1px solid rgba(106, 90, 205, 0.2);
 }
 
@@ -225,7 +224,6 @@ const handleTouchEnd = async (event: TouchEvent) => {
   margin: 0;
   padding: 0 30px;
   position: relative;
-  font-family: 'Roboto', sans-serif;
   text-transform: uppercase;
 }
 
@@ -385,7 +383,6 @@ const handleTouchEnd = async (event: TouchEvent) => {
   font-size: 1rem;
   color: #e0e0ff;
   flex: 1;
-  font-family: 'Roboto', sans-serif;
   font-weight: 400;
   transition: all 0.3s ease;
 }
