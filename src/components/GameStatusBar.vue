@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, nextTick, onUpdated } from 'vue';
+import { ref, onMounted, watch, nextTick } from 'vue';
 import { usePlayer } from '../composables/usePlayer';
 import { useI18n } from '../composables/useI18n';
 
@@ -30,77 +30,130 @@ const forceUpdateTrigger = ref(0); // Add a trigger for forcing updates
 // XP history display
 const showXPHistory = ref(false);
 
-// Force reactivity for the XP bar
+/**
+ * updateXPBar - Core function for updating the XP bar display in the UI
+ *
+ * This function ensures the XP bar visual state matches the actual data state by:
+ * 1. First updating the reactive Vue ref (currentXpWidth) to trigger template updates
+ * 2. Then directly manipulating the DOM for immediate visual feedback
+ * 3. Using nextTick to ensure DOM changes happen after Vue's rendering cycle
+ * 4. Using hardware acceleration (transform: translateZ(0)) for smooth animations
+ *
+ * The function works in tandem with various event listeners and watchers to ensure
+ * consistent UI state across asynchrounous operations.
+ */
 const updateXPBar = () => {
   console.log('🔥 [GameStatusBar] FORCE UPDATE - Current XP values:', {
     xp: xp.value,
     xpToNextLevel: xpToNextLevel.value,
-    xpPercentage: xpPercentage.value
+    xpPercentage: xpPercentage.value,
+    currentWidth: currentXpWidth.value
   });
 
-  // Force DOM update by manipulating DOM directly as a last resort
-  if (xpBarRef.value) {
-    const barElement = xpBarRef.value.querySelector('.xp-bar') as HTMLElement;
-    if (barElement) {
-      const calculatedWidth = Math.min((xp.value / xpToNextLevel.value) * 100, 100);
-      console.log('🔥 [GameStatusBar] Directly setting width to:', calculatedWidth + '%');
-      barElement.style.width = calculatedWidth + '%';
+  // Update the currentXpWidth first to trigger Vue's reactivity
+  currentXpWidth.value = xpPercentage.value;
 
-      // Also update the text
-      const textElement = xpBarRef.value.querySelector('.xp-text') as HTMLElement;
-      if (textElement) {
-        textElement.textContent = `${formatXP(xp.value)} / ${formatXP(xpToNextLevel.value)} XP`;
+  // Force DOM update by manipulating DOM directly after a small delay
+  nextTick(() => {
+    if (xpBarRef.value) {
+      const barElement = xpBarRef.value.querySelector('.xp-bar') as HTMLElement;
+      if (barElement) {
+        const calculatedWidth = Math.min((xp.value / xpToNextLevel.value) * 100, 100);
+        console.log('🔥 [GameStatusBar] Setting bar width to:', calculatedWidth + '%');
+
+        // Add transition class for smooth animation
+        barElement.style.transition = 'width 0.3s ease-out';
+        barElement.style.width = calculatedWidth + '%';
+
+        // Also update the text
+        const textElement = xpBarRef.value.querySelector('.xp-text') as HTMLElement;
+        if (textElement) {
+          textElement.textContent = `${formatXP(xp.value)} / ${formatXP(xpToNextLevel.value)} XP`;
+        }
       }
     }
-  }
-
-  // Update the currentXpWidth as well (for when Vue decides to re-render)
-  currentXpWidth.value = xpPercentage.value;
+  });
 };
 
+/**
+ * XP and Level Watchers and Event Handlers
+ *
+ * The system uses multiple coordination mechanisms to ensure reliable updates:
+ * 1. Vue watchers - Track reactive state changes (xp, xpToNextLevel)
+ * 2. Custom events - Allow cross-component communication for XP updates
+ * 3. DOM manipulation - For immediate visual feedback
+ * 4. Multiple update checks - To handle edge cases and race conditions
+ *
+ * This multi-layered approach ensures the XP bar updates correctly even during
+ * rapid changes, animations, and when multiple components modify the XP state.
+ */
+
 // Watch XP with an immediate callback that forces updates
-watch(() => xp.value, (newValue) => {
-  console.log('🔥 [GameStatusBar] XP CHANGED:', newValue);
-  setTimeout(updateXPBar, 50);
+watch([() => xp.value, () => xpToNextLevel.value], ([newXP, newXPToNext], [oldXP, oldXPToNext]) => {
+  console.log('🔥 [GameStatusBar] XP or XPToNext CHANGED:', {
+    newXP,
+    oldXP,
+    newXPToNext,
+    oldXPToNext
+  });
+
+  // Force immediate update
+  nextTick(() => {
+    updateXPBar();
+  });
 }, { immediate: true });
 
-// Also watch computations to detect changes
-watch(() => xpPercentage.value, (newValue) => {
-  console.log('🔥 [GameStatusBar] XP PERCENTAGE CHANGED:', newValue);
-  setTimeout(updateXPBar, 50);
-});
-
 // Track recent XP changes for animations
-watch(() => recentXPGain.value, (newValue) => {
-  console.log('🔍 [GameStatusBar] recentXPGain changed:', newValue);
+watch(() => recentXPGain.value, (newValue, oldValue) => {
+  console.log('🔍 [GameStatusBar] recentXPGain changed:', { newValue, oldValue });
 
   if (newValue !== 0) {
+    // Update XP gain display
     xpGainAmount.value = newValue;
     showXPGain.value = true;
     xpBarGlowing.value = true;
 
-    console.log('🔍 [GameStatusBar] Showing XP gain animation:', newValue);
+    // Force immediate XP bar update
+    nextTick(() => {
+      updateXPBar();
+    });
 
-    // Force XP bar update
-    updateXPBar();
-
+    // Hide XP gain number after animation
     setTimeout(() => {
       showXPGain.value = false;
-      // Update again after animation
-      updateXPBar();
+      nextTick(() => {
+        updateXPBar();
+      });
     }, 2000);
 
+    // Remove glow effect
     setTimeout(() => {
       xpBarGlowing.value = false;
-      // Update again after glow effect
-      updateXPBar();
+      nextTick(() => {
+        updateXPBar();
+      });
     }, 3000);
   }
 });
 
-// Get XP bar position for animations
+/**
+ * Component Initialization and Event Setup
+ *
+ * On mount, the component:
+ * 1. Gets a reference to the XP bar DOM element for direct manipulation
+ * 2. Loads the initial player state (level, XP, etc.)
+ * 3. Sets up global event listeners for XP updates from other components
+ * 4. Forces an initial update to ensure the XP bar is in the correct state
+ *
+ * The event listeners handle both immediate updates and delayed/completion updates,
+ * with multiple safeguards to ensure visual consistency.
+ */
+
+// Get XP bar position for animations and set up event listeners
 onMounted(async () => {
   console.log('🔍 [GameStatusBar] Component mounted');
+
+  // Get reference to XP bar container
   xpBarRef.value = document.querySelector('.xp-bar-container');
 
   // Ensure player state is loaded
@@ -110,37 +163,45 @@ onMounted(async () => {
   // Force immediate update after player state is loaded
   updateXPBar();
 
-  // Set up a global event for XP updates
+  // Set up event listeners for XP updates
   window.addEventListener('xp-updated', (event) => {
     console.log('🔥 [GameStatusBar] Received xp-updated event', event);
-
-    // Check if we got a CustomEvent with detail
     const customEvent = event as CustomEvent;
-    if (customEvent.detail && customEvent.detail.forceUpdate) {
-      console.log('🔥 [GameStatusBar] Received force update flag in xp-updated event');
 
-      // Force the forceUpdateTrigger to increment, causing Vue to re-render
-      forceUpdateTrigger.value++;
+    if (customEvent.detail) {
+      // Update XP bar with new values if provided
+      if (customEvent.detail.xp !== undefined) {
+        xp.value = customEvent.detail.xp;
+      }
 
-      // Force an immediate DOM update
-      nextTick(() => {
-        updateXPBar();
-      });
-    } else {
-      // Still update even without the force flag
-      updateXPBar();
+      // Force update if requested
+      if (customEvent.detail.forceUpdate) {
+        forceUpdateTrigger.value++;
+        nextTick(() => {
+          updateXPBar();
+        });
+      }
     }
+
+    // Always update the bar to ensure synchronization
+    updateXPBar();
   });
 
-  // Also listen for the complete event, which happens after all processing is done
-  window.addEventListener('xp-updated-complete', () => {
+  // Handle completion events
+  window.addEventListener('xp-updated-complete', (event) => {
     console.log('🔥 [GameStatusBar] Received xp-updated-complete event');
+    const customEvent = event as CustomEvent;
 
-    // Update after a small delay to ensure all other operations are complete
+    // Ensure final values are displayed correctly
     setTimeout(() => {
-      console.log('🔥 [GameStatusBar] Running delayed updateXPBar after complete event');
+      console.log('🔥 [GameStatusBar] Applying final XP update');
       forceUpdateTrigger.value++;
       updateXPBar();
+
+      // Double-check update after a brief delay
+      setTimeout(() => {
+        updateXPBar();
+      }, 100);
     }, 50);
   });
 });
@@ -174,46 +235,42 @@ const formatXP = (value: number): string => {
     <div class="player-info">
       <div class="level-row">
         <h2>{{ t('player.level') }} {{ level }}</h2>
-        <div
-          v-if="showXPGain"
-          class="xp-gain"
-          :class="{ 'positive': xpGainAmount > 0, 'negative': xpGainAmount < 0 }"
-        >
-          {{ xpGainAmount > 0 ? '+' : '' }}{{ xpGainAmount }}
-        </div>
-      </div>
-
-      <div class="xp-bar-container" ref="xpBarRef" @click="toggleXPHistory" :class="{ 'glowing': xpBarGlowing }">
-        <div class="xp-bar" :style="{ width: currentXpWidth + '%' }"></div>
-        <span class="xp-text">{{ formatXP(xp) }} / {{ formatXP(xpToNextLevel) }} {{ t('player.xp') }}</span>
-      </div>
-
-      <!-- Element that forces reactivity update when key changes -->
-      <div style="display: none;">{{ forceUpdateTrigger }}</div>
-
-      <!-- XP Animation Container -->
-
-
-      <!-- XP History Panel -->
-      <transition name="slide-down">
-        <div v-if="showXPHistory" class="xp-history-panel">
-          <div class="history-header">
-            <h3>{{ t('player.recentXP') }}</h3>
-            <div class="total-xp">{{ t('player.totalXP') }}: {{ formatXP(totalXPEarned) }}</div>
+        <transition name="float">
+          <div
+            v-if="showXPGain"
+            class="xp-gain"
+            :class="{ 'positive': xpGainAmount > 0, 'negative': xpGainAmount < 0 }"
+          >
+            {{ xpGainAmount > 0 ? '+' : '' }}{{ xpGainAmount }}
           </div>
-          <ul class="history-list">
-            <li v-for="(item, index) in recentHistory" :key="index"
-                :class="{ 'positive': item.amount > 0, 'negative': item.amount < 0 }">
-              <div class="history-amount">{{ item.amount > 0 ? '+' : '' }}{{ item.amount }}</div>
-              <div class="history-source">{{ item.source }}</div>
-              <div class="history-time">{{ new Date(item.timestamp).toLocaleTimeString() }}</div>
-            </li>
-            <li v-if="recentHistory.length === 0" class="empty-history">
-              {{ t('player.noHistory') }}
-            </li>
-          </ul>
-        </div>
-      </transition>
+        </transition>
+      </div>
+
+      <div
+        class="xp-bar-container"
+        ref="xpBarRef"
+        @click="toggleXPHistory"
+        :class="{ 'glowing': xpBarGlowing }"
+      >
+        <div
+          class="xp-bar"
+          :style="{
+            width: currentXpWidth + '%',
+            transition: 'width 0.3s ease-out'
+          }"
+        ></div>
+        <span class="xp-text">
+          {{ formatXP(xp) }} / {{ formatXP(xpToNextLevel) }} {{ t('player.xp') }}
+        </span>
+      </div>
+
+      <!-- Hidden element to force reactivity updates -->
+      <div style="display: none;">
+        {{ forceUpdateTrigger }}
+        {{ xp }}
+        {{ xpToNextLevel }}
+        {{ currentXpWidth }}
+      </div>
     </div>
   </div>
 </template>
@@ -223,13 +280,15 @@ const formatXP = (value: number): string => {
   display: flex;
   align-items: center;
   margin-bottom: 20px;
-  background: linear-gradient(135deg, #2a2a3a 0%, #1a1a2a 100%);
-  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(12, 12, 30, 0.9), rgba(15, 15, 35, 0.95));
+  border-radius: 0;
   padding: 15px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
   border: 1px solid rgba(106, 90, 205, 0.3);
   position: relative;
   overflow: hidden;
+  font-family: 'Roboto', sans-serif;
+
 }
 
 .player-status.has-unread {
@@ -237,21 +296,17 @@ const formatXP = (value: number): string => {
   box-shadow: 0 4px 15px rgba(255, 215, 0, 0.2);
 }
 
+/* Solo Leveling style blue pattern */
 .player-status::before {
   content: '';
   position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: radial-gradient(circle, rgba(106, 90, 205, 0.1) 0%, transparent 70%);
-  animation: rotate 10s linear infinite;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cg fill-rule='evenodd'%3E%3Cg fill='%236a5acd' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  opacity: 0.2;
   z-index: 0;
-}
-
-@keyframes rotate {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
 }
 
 .player-rank {
@@ -273,30 +328,50 @@ const formatXP = (value: number): string => {
 }
 
 @keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-  100% { transform: scale(1); }
+  0% { transform: scale(1); filter: drop-shadow(0 0 3px rgba(106, 90, 205, 0.5)); }
+  50% { transform: scale(1.1); filter: drop-shadow(0 0 10px rgba(106, 90, 205, 0.8)); }
+  100% { transform: scale(1); filter: drop-shadow(0 0 3px rgba(106, 90, 205, 0.5)); }
 }
 
 .rank-label {
   font-size: 0.8rem;
-  color: #9370db;
+  color: #a990ff;
   margin-bottom: 5px;
+  font-family: 'Roboto', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .rank-value {
-  width: 35px;
-  height: 35px;
-  background-color: #1a1a2a;
+  width: 38px;
+  height: 38px;
+  background-color: rgba(10, 10, 25, 0.8);
   border: 2px solid #6a5acd;
-  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
   font-size: 1.3rem;
-  color: #6a5acd;
+  color: #a990ff;
   box-shadow: 0 0 10px rgba(106, 90, 205, 0.5);
+  position: relative;
+  /* Solo Leveling hexagonal shape */
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  transition: all 0.3s ease;
+}
+
+.rank-value::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  right: 3px;
+  bottom: 3px;
+  background-color: transparent;
+  border: 1px solid rgba(169, 144, 255, 0.3);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  z-index: 1;
+  pointer-events: none;
 }
 
 .rank-up .rank-value {
@@ -313,6 +388,17 @@ const formatXP = (value: number): string => {
   z-index: 1;
   cursor: pointer;
   transition: all 0.3s ease;
+}
+
+.player-icon::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  right: -5px;
+  bottom: -5px;
+  z-index: -1;
+
 }
 
 .player-icon:hover {
@@ -342,22 +428,22 @@ const formatXP = (value: number): string => {
   right: -5px;
   background: #6a5acd;
   color: white;
-  border-radius: 50%;
-  width: 25px;
-  height: 25px;
+  width: 26px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
-  border: 2px solid white;
+  border: 2px solid rgba(10, 10, 25, 0.8);
   box-shadow: 0 0 10px rgba(106, 90, 205, 0.7);
   font-size: 0.9rem;
   transition: all 0.3s ease;
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
 }
 
 .level-up .level-badge {
   background: gold;
-  border-color: white;
+  border-color: rgba(10, 10, 25, 0.8);
   box-shadow: 0 0 15px rgba(255, 215, 0, 0.7);
 }
 
@@ -376,9 +462,13 @@ const formatXP = (value: number): string => {
 
 .player-info h2 {
   margin: 0 0 8px;
-  color: #fff;
+  color: #e0e0ff;
   font-size: 1.3rem;
   text-shadow: 0 0 5px rgba(106, 90, 205, 0.7);
+  font-family: 'Roboto', sans-serif;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .xp-gain {
@@ -386,19 +476,23 @@ const formatXP = (value: number): string => {
   font-size: 1.2rem;
   animation: fadeInOut 2s;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: 0;
   min-width: 60px;
   text-align: center;
+  /* Solo Leveling angular shape */
+  clip-path: polygon(0% 0%, 100% 0%, 90% 100%, 10% 100%);
 }
 
 .xp-gain.positive {
-  color: #4caf50;
-  background: rgba(76, 175, 80, 0.2);
+  color: #50ef9f;
+  background: rgba(80, 239, 159, 0.15);
+  border: 1px solid rgba(80, 239, 159, 0.3);
 }
 
 .xp-gain.negative {
-  color: #f44336;
-  background: rgba(244, 67, 54, 0.2);
+  color: #ff6060;
+  background: rgba(255, 96, 96, 0.15);
+  border: 1px solid rgba(255, 96, 96, 0.3);
 }
 
 @keyframes fadeInOut {
@@ -410,14 +504,15 @@ const formatXP = (value: number): string => {
 
 .xp-bar-container {
   height: 18px;
-  background-color: #2a2a3a;
-  border-radius: 10px;
+  background-color: rgba(20, 20, 40, 0.8);
+  border-radius: 0;
   overflow: hidden;
   position: relative;
-  border: 1px solid #6a5acd;
+  border: 1px solid rgba(106, 90, 205, 0.4);
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
   cursor: pointer;
   transition: all 0.3s ease;
+  clip-path: polygon(0% 0%, 100% 0%, 98% 100%, 2% 100%);
 }
 
 .xp-bar-container:hover {
@@ -439,12 +534,12 @@ const formatXP = (value: number): string => {
 
 .xp-bar {
   height: 100%;
-  background: linear-gradient(90deg, #6a5acd, #9370db);
-  /* Change transition to be faster */
-  transition: width 0.2s ease-out;
+  background: linear-gradient(90deg, #341c8c, #6a5acd);
   position: relative;
   overflow: hidden;
-  min-width: 1px; /* Ensure empty bars still show a minimum amount */
+  min-width: 1px;
+  will-change: width;
+  transform: translateZ(0);
 }
 
 .xp-bar::after {
@@ -455,11 +550,13 @@ const formatXP = (value: number): string => {
   right: 0;
   bottom: 0;
   background: linear-gradient(90deg,
-    rgba(255, 255, 255, 0.1) 0%,
-    rgba(255, 255, 255, 0.2) 50%,
-    rgba(255, 255, 255, 0.1) 100%);
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(255, 255, 255, 0.2) 20%,
+    rgba(255, 255, 255, 0.1) 40%,
+    rgba(255, 255, 255, 0.2) 60%,
+    rgba(255, 255, 255, 0.05) 100%);
   transform: skewX(-20deg);
-  animation: shimmer 2s infinite;
+  animation: shimmer 1.5s infinite;
 }
 
 @keyframes shimmer {
@@ -477,43 +574,36 @@ const formatXP = (value: number): string => {
   align-items: center;
   justify-content: center;
   color: white;
-  font-weight: bold;
+  font-weight: 600;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
   font-size: 0.9rem;
+  font-family: 'Roboto', sans-serif;
+  letter-spacing: 0.5px;
 }
 
-/* XP Animation */
-.floating-xp {
-  position: fixed;
-  font-weight: bold;
-  font-size: 1.5rem;
-  text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
-  animation: floatToXPBar 1.5s forwards;
-  z-index: 1000;
-  pointer-events: none;
-}
-
-@keyframes floatToXPBar {
-  0% { transform: scale(1) translateY(0); opacity: 1; }
-  70% { transform: scale(1.2) translateY(-20px); opacity: 1; }
-  100% { transform: scale(0.5) translateY(-50px); opacity: 0; }
-}
-
-/* XP History Panel */
 .xp-history-panel {
   position: absolute;
   top: 100%;
   left: 0;
   right: 0;
-  background: rgba(20, 20, 35, 0.95);
-  border-radius: 0 0 10px 10px;
+  background: rgba(10, 10, 25, 0.95);
+  border-radius: 0;
   margin-top: 5px;
   padding: 12px;
   z-index: 10;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(106, 90, 205, 0.3);
   max-height: 200px;
   overflow-y: auto;
+  clip-path: polygon(
+    0% 0%,
+    97% 0%,
+    100% 10%,
+    100% 100%,
+    3% 100%,
+    0% 90%,
+    0% 0%
+  );
 }
 
 .history-header {
@@ -528,12 +618,16 @@ const formatXP = (value: number): string => {
 .history-header h3 {
   margin: 0;
   font-size: 1rem;
-  color: #fff;
+  color: #e0e0ff;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
 }
 
 .total-xp {
   font-size: 0.9rem;
-  color: #9370db;
+  color: #a990ff;
+  font-weight: 500;
 }
 
 .history-list {
@@ -547,7 +641,7 @@ const formatXP = (value: number): string => {
   justify-content: space-between;
   align-items: center;
   padding: 5px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(106, 90, 205, 0.2);
 }
 
 .history-list li:last-child {
@@ -560,32 +654,32 @@ const formatXP = (value: number): string => {
 }
 
 .history-amount.positive {
-  color: #4caf50;
+  color: #50ef9f;
 }
 
 .history-amount.negative {
-  color: #f44336;
+  color: #ff6060;
 }
 
 .history-source {
   flex: 1;
   margin: 0 10px;
   font-size: 0.9rem;
-  color: #ddd;
+  color: #c0c0f0;
 }
 
 .history-time {
   font-size: 0.8rem;
-  color: #999;
+  color: #8080c0;
 }
 
 .empty-history {
   text-align: center;
-  color: #999;
+  color: #8080c0;
   padding: 10px 0;
+  font-style: italic;
 }
 
-/* Transitions */
 .slide-down-enter-active,
 .slide-down-leave-active {
   transition: all 0.3s ease;
@@ -599,33 +693,60 @@ const formatXP = (value: number): string => {
 
 .float-enter-active,
 .float-leave-active {
-  transition: all 0.5s ease;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .float-enter-from,
 .float-leave-to {
   opacity: 0;
+  transform: translateY(-20px);
+}
+
+.float-enter-to,
+.float-leave-from {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 @media (max-width: 768px) {
   .player-status {
-    flex-direction: column;
-    text-align: center;
-    padding: 12px;
+    flex-direction: row;
+    align-items: center;
+    padding: 12px 10px;
+    text-align: left;
   }
 
   .player-rank {
-    margin-right: 0;
-    margin-bottom: 10px;
+    margin-right: 12px;
+    margin-bottom: 0;
   }
 
   .player-icon {
-    margin-right: 0;
-    margin-bottom: 10px;
+    width: 60px;
+    height: 60px;
+    margin-right: 12px;
+    margin-bottom: 0;
+  }
+
+  .player-info {
+    flex: 1;
   }
 
   .level-row {
-    justify-content: center;
+    justify-content: space-between;
+  }
+
+  .player-info h2 {
+    font-size: 1.1rem;
+    margin-bottom: 6px;
+  }
+
+  .xp-text {
+    font-size: 0.8rem;
+  }
+
+  .xp-bar-container {
+    height: 16px;
   }
 
   .xp-gain {
@@ -642,6 +763,47 @@ const formatXP = (value: number): string => {
     transform: translateY(-50%);
     max-height: 80vh;
     z-index: 1001;
+  }
+}
+
+@media (max-width: 480px) {
+  .player-status {
+    padding: 10px 8px;
+  }
+
+  .player-rank {
+    margin-right: 8px;
+  }
+
+  .rank-value {
+    width: 34px;
+    height: 34px;
+    font-size: 1.1rem;
+  }
+
+  .player-icon {
+    width: 50px;
+    height: 50px;
+    margin-right: 10px;
+  }
+
+  .level-badge {
+    width: 22px;
+    height: 22px;
+    font-size: 0.8rem;
+  }
+
+  .player-info h2 {
+    font-size: 1rem;
+    margin-bottom: 4px;
+  }
+
+  .xp-bar-container {
+    height: 14px;
+  }
+
+  .xp-text {
+    font-size: 0.75rem;
   }
 }
 </style>
