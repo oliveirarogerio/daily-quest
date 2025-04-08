@@ -281,7 +281,6 @@ const isActive = computed(() => (tab: string) => activeTab.value === tab);
 }
 
 .nav-label {
-  font-family: 'Roboto', 'Courier New', monospace;
   font-size: 0.72rem;
   font-weight: 500;
   text-transform: uppercase;
