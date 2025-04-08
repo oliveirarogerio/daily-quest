@@ -1,4 +1,3 @@
-export type Difficulty = 'easy' | 'normal' | 'hard' | 'epic'
 export type Rank = 'E' | 'D' | 'C' | 'B' | 'A' | 'S' | 'SS' | 'SSS'
 
 export interface Habit {
@@ -11,7 +10,6 @@ export interface Habit {
   userId: string
   createdAt: Date
   lastEarnedXP: number
-  difficulty: Difficulty
   tags: string[]
 }
 
