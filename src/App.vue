@@ -31,17 +31,12 @@ const { state: notificationState } = useNotification()
       </div>
     </div>
 
-    <Notification
-      :show="notificationState.show"
-      :message="notificationState.message"
-      :type="notificationState.type"
-    />
+    <Notification :show="notificationState.show" :message="notificationState.message" :type="notificationState.type" />
     <LevelUpAnimation :show="showLevelUpAnimation" />
   </div>
 </template>
 
 <style>
-
 body {
   background-color: #0a0a14;
 }
@@ -83,8 +78,6 @@ body {
   text-align: center;
   margin-bottom: 30px;
   position: relative;
-  width: 90%;
-  max-width: 600px;
 }
 
 .rpg-window {
@@ -165,6 +158,13 @@ h1::after {
   color: #ffffff;
 }
 
+
+@media screen and (max-width: 768px) {
+  .content {
+    margin-top: 60px;
+  }
+}
+
 @media (min-width: 768px) {
   .content {
     margin-top: 80px;
@@ -191,17 +191,33 @@ h1::after {
   .header {
     max-width: 800px;
   }
+
+  .content {
+    margin-top: 80px;
+  }
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 0.8; }
-  50% { opacity: 1; }
+
+  0%,
+  100% {
+    opacity: 0.8;
+  }
+
+  50% {
+    opacity: 1;
+  }
 }
 
 @keyframes glow {
-  0%, 100% { filter: drop-shadow(0 0 5px rgba(106, 90, 205, 0.5)); }
-  50% { filter: drop-shadow(0 0 15px rgba(106, 90, 205, 0.8)); }
+
+  0%,
+  100% {
+    filter: drop-shadow(0 0 5px rgba(106, 90, 205, 0.5));
+  }
+
+  50% {
+    filter: drop-shadow(0 0 15px rgba(106, 90, 205, 0.8));
+  }
 }
-
-
 </style>

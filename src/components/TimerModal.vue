@@ -346,7 +346,6 @@ onUnmounted(() => {
   align-items: center;
   z-index: 1000;
   backdrop-filter: blur(10px);
-  font-family: 'Roboto', sans-serif;
 }
 
 .timer-content {

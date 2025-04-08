@@ -287,8 +287,6 @@ const formatXP = (value: number): string => {
   border: 1px solid rgba(106, 90, 205, 0.3);
   position: relative;
   overflow: hidden;
-  font-family: 'Roboto', sans-serif;
-
 }
 
 .player-status.has-unread {
@@ -337,7 +335,6 @@ const formatXP = (value: number): string => {
   font-size: 0.8rem;
   color: #a990ff;
   margin-bottom: 5px;
-  font-family: 'Roboto', sans-serif;
   text-transform: uppercase;
   letter-spacing: 1px;
 }
@@ -465,7 +462,6 @@ const formatXP = (value: number): string => {
   color: #e0e0ff;
   font-size: 1.3rem;
   text-shadow: 0 0 5px rgba(106, 90, 205, 0.7);
-  font-family: 'Roboto', sans-serif;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -577,7 +573,6 @@ const formatXP = (value: number): string => {
   font-weight: 600;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
   font-size: 0.9rem;
-  font-family: 'Roboto', sans-serif;
   letter-spacing: 0.5px;
 }
 
