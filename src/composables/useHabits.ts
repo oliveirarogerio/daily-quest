@@ -1,3 +1,14 @@
+/**
+ * Habits Management Composable
+ *
+ * This composable provides comprehensive functionality for managing habits, including:
+ * - Creating, reading, updating, and deleting habits (CRUD operations)
+ * - Syncing habits between local storage and Firebase
+ * - Tracking habit completion and streaks
+ * - Managing habit time tracking
+ * - Calculating XP rewards for habit completion
+ * - Integrating with player progression system
+ */
 import { ref, watch } from 'vue'
 import { useCurrentUser } from 'vuefire'
 import {
@@ -13,7 +24,7 @@ import {
 import { db, habitsRef } from '../firebase/config'
 import { useFirebaseError } from './useFirebaseError'
 import { useNotification } from './useNotification'
-import type { Habit, Difficulty } from '../types/habit'
+import type { Habit } from '../types/habit'
 import { usePlayer } from './usePlayer'
 
 export function useHabits() {
@@ -24,7 +35,13 @@ export function useHabits() {
   const { displayNotification } = useNotification()
   const { trackHabitCompletion, trackTimeSpent } = usePlayer()
 
-  // Load initial data from localStorage
+  /**
+   * Loads habits data from localStorage
+   *
+   * This function retrieves saved habits from the browser's localStorage
+   * and initializes the habits reactive reference with this data.
+   * If no data is found or an error occurs, an empty array is used.
+   */
   const loadFromStorage = () => {
     try {
       const savedHabits = localStorage.getItem('habits')
@@ -37,7 +54,13 @@ export function useHabits() {
     }
   }
 
-  // Save habits to localStorage
+  /**
+   * Saves current habits data to localStorage
+   *
+   * This function persists the current habits array to the browser's
+   * localStorage, enabling data persistence between sessions even when
+   * the user is not logged in.
+   */
   const saveToStorage = () => {
     try {
       localStorage.setItem('habits', JSON.stringify(habits.value))
@@ -46,7 +69,18 @@ export function useHabits() {
     }
   }
 
-  // Sync with Firebase
+  /**
+   * Synchronizes habits between Firebase and local storage
+   *
+   * This function:
+   * 1. Fetches the user's habits from Firebase
+   * 2. Merges local and Firebase habits with conflict resolution
+   * 3. Automatically creates Firebase documents for local habits
+   * 4. Updates the local state with merged data
+   * 5. Persists the merged data to localStorage
+   *
+   * @returns {Promise<void>}
+   */
   const refreshHabits = async (): Promise<void> => {
     if (!user.value) return
 
@@ -112,6 +146,18 @@ export function useHabits() {
     }
   })
 
+  /**
+   * Creates a new habit
+   *
+   * This function:
+   * 1. Creates a habit object with default values and the provided name
+   * 2. Attempts to create the habit in Firebase if the user is logged in
+   * 3. Falls back to local storage with a UUID if Firebase creation fails
+   * 4. Updates the local state and persists to storage
+   *
+   * @param {string} name - The name of the habit to create
+   * @returns {Promise<void>}
+   */
   const addHabit = async (name: string): Promise<void> => {
     if (!name.trim()) return
 
@@ -125,7 +171,6 @@ export function useHabits() {
         createdAt: new Date(),
         lastEarnedXP: 0,
         description: '',
-        difficulty: 'normal',
         tags: [],
       }
 
@@ -157,6 +202,16 @@ export function useHabits() {
     }, 'addHabit')
   }
 
+  /**
+   * Deletes a habit by ID
+   *
+   * This function:
+   * 1. Removes the habit from local state
+   * 2. Deletes the habit from Firebase if the user is logged in
+   *
+   * @param {string} habitId - The ID of the habit to delete
+   * @returns {Promise<void>}
+   */
   const deleteHabit = async (habitId: string): Promise<void> => {
     await wrapFirebaseOperation(async () => {
       // Remove from local state
@@ -169,6 +224,18 @@ export function useHabits() {
     }, 'deleteHabit')
   }
 
+  /**
+   * Updates a habit with partial data
+   *
+   * This function:
+   * 1. Updates the habit in local state
+   * 2. Syncs the update to Firebase if the user is logged in
+   * 3. Creates the document in Firebase if it doesn't already exist
+   *
+   * @param {string} habitId - The ID of the habit to update
+   * @param {Partial<Habit>} updates - The properties to update
+   * @returns {Promise<void>}
+   */
   const updateHabit = async (habitId: string, updates: Partial<Habit>): Promise<void> => {
     await wrapFirebaseOperation(async () => {
       // Update local state first
@@ -232,15 +299,23 @@ export function useHabits() {
     }, 'updateHabit')
   }
 
-  const calculateXP = (streak: number, difficulty: string = 'normal'): number => {
-    // Base XP values by difficulty
-    const baseXP =
-      {
-        easy: 5,
-        normal: 10,
-        hard: 20,
-        epic: 40,
-      }[difficulty] || 10
+  /**
+   * Calculates the base XP reward for completing a habit based on streak
+   *
+   * This function implements a progressive XP reward system that:
+   * 1. Provides a base XP amount for all completions
+   * 2. Adds additional XP bonuses for maintaining streaks
+   * 3. Uses tiered progression to reward longer streaks with higher bonuses
+   *
+   * The XP scaling is designed to encourage daily habit completion and
+   * provide increasing rewards for consistency.
+   *
+   * @param streak The current streak count for the habit
+   * @returns The base XP amount (before multipliers in usePlayer)
+   */
+  const calculateXP = (streak: number): number => {
+    // Base XP for completing a habit
+    const baseXP = 10
 
     // Enhanced streak bonus calculation
     // Streak multiplier grows faster at certain thresholds
@@ -255,15 +330,16 @@ export function useHabits() {
     } else if (streak <= 20) {
       // Days 11-20: +3 XP per day
       streakBonus = 5 + 10 + (streak - 10) * 3
+    } else if (streak <= 50) {
+      // Days 21-50: +4 XP per day
+      streakBonus = 5 + 10 + 30 + (streak - 20) * 4
     } else {
-      // Days 21+: +5 XP per day
-      streakBonus = 5 + 10 + 30 + (streak - 20) * 5
+      // Days 51+: +5 XP per day
+      streakBonus = 5 + 10 + 30 + 120 + (streak - 50) * 5
     }
 
-    // Streak multiplier calculation (percentage-based)
-    const streakMultiplier = 1 + Math.min(streak * 0.05, 1.0) // Cap at 100% bonus
-
-    return Math.floor((baseXP + streakBonus) * streakMultiplier)
+    // Return base XP plus streak bonus
+    return baseXP + streakBonus
   }
 
   // New function to check if streak protection should be used
@@ -292,13 +368,34 @@ export function useHabits() {
     return false
   }
 
+  /**
+   * Toggles a habit's completion status and manages XP rewards
+   *
+   * This function handles the complete flow of completing/uncompleting a habit:
+   * 1. Calculates appropriate XP changes based on completion state
+   * 2. Tracks and updates streak information
+   * 3. Manages streak continuation, breakage, or protection
+   * 4. Updates the habit state in both local storage and Firebase
+   * 5. Awards bonus XP for milestone streaks
+   * 6. Tracks habit completion for achievement/statistics purposes
+   *
+   * The function returns the XP change value (positive for completing, negative
+   * for uncompleting) which is then used by the HabitTracker component to
+   * trigger animations and update player state.
+   *
+   * @param habit The habit to toggle completion status for
+   * @returns The XP change amount (positive or negative)
+   */
   const toggleHabitCompletion = async (habit: Habit): Promise<number> => {
     const result = await wrapFirebaseOperation(async () => {
       try {
+        // Store whether the habit was previously completed
         const wasCompleted = habit.completed
-        const earnedXP = calculateXP(habit.streak, habit.difficulty || 'normal')
 
-        // Check last completion date to see if streak was broken
+        // Calculate potential XP based on current streak
+        const earnedXP = calculateXP(habit.streak || 0)
+
+        // Streak calculation variables
         const lastCompleted = localStorage.getItem(`lastCompleted_${habit.id}`)
         const today = new Date().toDateString()
         const yesterday = new Date()
@@ -307,70 +404,79 @@ export function useHabits() {
 
         let newStreak = habit.streak
 
+        // Handle completing a habit
         if (!wasCompleted) {
-          // Completing a habit
-
-          // First time completing this habit today
+          // Record completion date (for streak calculation later)
           localStorage.setItem(`lastCompleted_${habit.id}`, today)
 
+          // Different cases for streak calculation
           if (lastCompleted === yesterdayString) {
-            // Completed yesterday - streak continues
+            // Case 1: Completed yesterday - streak continues
             newStreak = habit.streak + 1
           } else if (
             lastCompleted &&
             lastCompleted !== today &&
             lastCompleted !== yesterdayString
           ) {
-            // Streak was broken - check if we should use streak protection
+            // Case 2: Last completed before yesterday - streak is broken
+            // Check if streak protection should be used
             const useProtection = await checkStreakProtection(habit.id)
 
             if (useProtection) {
-              // Preserve streak and increment
+              // Streak protection used - preserve and increment streak
               newStreak = habit.streak + 1
             } else {
-              // Reset streak
+              // No protection - reset streak to 1
               newStreak = 1
               displayNotification(`Your streak for "${habit.name}" has been reset.`)
             }
           } else {
-            // First completion or same-day completion
+            // Case 3: First completion ever OR completed today already
+            // For both cases, increment streak
             newStreak = habit.streak + 1
           }
         } else {
-          // Uncompleting a habit (reducing streak)
+          // Handle uncompleting a habit (reducing streak)
           newStreak = Math.max(0, habit.streak - 1)
         }
 
+        // Update habit with new completion status and streak
         await updateHabit(habit.id, {
           completed: !wasCompleted,
           streak: newStreak,
           lastEarnedXP: wasCompleted ? 0 : earnedXP,
         })
 
-        // Bonus XP for milestone streaks (5, 10, 25, 50, 100, etc.)
+        // Check for milestone streaks that earn bonus XP
         let bonusXP = 0
-        if (!wasCompleted && [5, 10, 25, 50, 100, 150, 200, 365].includes(newStreak)) {
-          bonusXP = newStreak * 2 // 2 XP per day of streak as a milestone bonus
+        const milestones = [5, 10, 25, 50, 100, 150, 200, 365]
+
+        if (!wasCompleted && milestones.includes(newStreak)) {
+          // Award bonus XP for reaching milestone streaks
+          bonusXP = newStreak * 2 // 2 XP per day of streak as milestone bonus
           displayNotification(
             `🔥 ${newStreak} day streak achieved for "${habit.name}"! +${bonusXP} bonus XP!`,
           )
         }
 
-        // Track habit completion for achievements
+        // Track habit completion for achievements system
         if (!wasCompleted) {
-          trackHabitCompletion({
+          await trackHabitCompletion({
             streak: newStreak,
             id: habit.id,
           })
         }
 
+        // Return XP change: negative if uncompleting, positive if completing
         return wasCompleted ? -habit.lastEarnedXP! : earnedXP + bonusXP
       } catch (error) {
         console.error('Error toggling habit completion:', error)
-        return 0 // Return 0 XP if there was an error
+        displayNotification('Failed to update habit completion status')
+        return 0 // Return 0 XP on error
       }
     }, 'toggleHabitCompletion')
 
+    // If wrapFirebaseOperation failed or returned undefined, return 0
     return result ?? 0
   }
 
