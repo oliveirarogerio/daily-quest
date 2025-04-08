@@ -1,7 +1,22 @@
 <script setup lang="ts">
+/**
+ * AddQuestModal.vue
+ *
+ * Modal for adding new habits/quests.
+ * Provides a form interface for creating new habits with validation
+ * and swipe-to-dismiss functionality.
+ */
 import { ref } from 'vue';
 import { useI18n } from '../composables/useI18n';
 
+/**
+ * Component Events
+ * @event close - When modal is closed
+ * @event add - When a new habit is submitted, provides the habit name
+ * @event touchStart - Touch event for swipe gesture handling
+ * @event touchMove - Touch event for swipe gesture handling
+ * @event touchEnd - Touch event for swipe gesture handling
+ */
 const emit = defineEmits<{
   (event: 'close'): void;
   (event: 'add', name: string): void;
@@ -10,6 +25,10 @@ const emit = defineEmits<{
   (event: 'touchEnd', evt: TouchEvent): void;
 }>();
 
+/**
+ * Component Props
+ * @property {number} swipeOffset - Current swipe offset for dismiss gesture
+ */
 const props = defineProps<{
   swipeOffset: number;
 }>();
@@ -17,6 +36,11 @@ const props = defineProps<{
 const { t } = useI18n();
 const questName = ref('');
 
+/**
+ * Handles form submission when adding a new quest/habit.
+ * Validates that the quest name is not empty before emitting
+ * the add event, then resets the form.
+ */
 const handleSubmit = () => {
   if (questName.value.trim()) {
     emit('add', questName.value.trim());
@@ -69,6 +93,7 @@ const handleSubmit = () => {
   align-items: center;
   z-index: 1000;
   backdrop-filter: blur(10px);
+  font-family: 'Roboto', sans-serif;
 }
 
 .modal-content {
@@ -94,6 +119,8 @@ const handleSubmit = () => {
   color: #fff;
   font-size: 1.4rem;
   text-shadow: 0 0 10px rgba(106, 90, 205, 0.5);
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
 }
 
 .close-button {
@@ -135,6 +162,7 @@ const handleSubmit = () => {
   color: #fff;
   font-size: 1rem;
   transition: all 0.3s ease;
+  font-family: 'Roboto', sans-serif;
 }
 
 .quest-input:focus {
@@ -153,9 +181,10 @@ const handleSubmit = () => {
   border: none;
   border-radius: 8px;
   color: #fff;
-  font-weight: bold;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
+  font-family: 'Roboto', sans-serif;
 }
 
 .add-button:disabled {
@@ -170,11 +199,16 @@ const handleSubmit = () => {
 
 @media (max-width: 768px) {
   .modal-content {
-    width: 100%;
-    height: 100%;
-    border-radius: 0;
+    width: 90%;
+    max-height: 80%;
+    border-radius: 16px;
     display: flex;
     flex-direction: column;
+    padding: 20px;
+  }
+
+  .modal-header h3 {
+    font-size: 1.3rem;
   }
 
   .add-quest-form {
@@ -184,7 +218,30 @@ const handleSubmit = () => {
 
   .quest-input,
   .add-button {
+    padding: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .modal-content {
+    width: 95%;
     padding: 16px;
+  }
+
+  .modal-header h3 {
+    font-size: 1.2rem;
+  }
+
+  .quest-input,
+  .add-button {
+    padding: 12px;
+    font-size: 0.95rem;
+  }
+
+  .close-button {
+    width: 28px;
+    height: 28px;
+    font-size: 20px;
   }
 }
 </style>
