@@ -274,7 +274,6 @@ const dismissAuth = () => {
   padding: 0;
   position: relative;
   z-index: 5;
-  font-family: 'Roboto', sans-serif;
 }
 
 .user-info {
@@ -417,7 +416,6 @@ const dismissAuth = () => {
   font-weight: 600;
   text-shadow: 0 0 20px rgba(106, 90, 205, 0.5);
   letter-spacing: 1px;
-  font-family: 'Roboto', sans-serif;
 }
 
 .auth-subtitle {
@@ -447,7 +445,6 @@ const dismissAuth = () => {
   color: #fff;
   font-size: 1rem;
   transition: all 0.3s ease;
-  font-family: 'Roboto', sans-serif;
 }
 
 .form-group input:focus {
@@ -470,7 +467,6 @@ const dismissAuth = () => {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
-  font-family: 'Roboto', sans-serif;
 }
 
 .primary-btn::before {
@@ -513,7 +509,6 @@ const dismissAuth = () => {
   cursor: pointer;
   transition: all 0.3s ease;
   margin-top: 16px;
-  font-family: 'Roboto', sans-serif;
 }
 
 .google-btn:hover {
@@ -562,7 +557,6 @@ const dismissAuth = () => {
   padding: 0;
   font-size: 0.9rem;
   transition: all 0.3s ease;
-  font-family: 'Roboto', sans-serif;
 }
 
 .toggle-btn:hover {
