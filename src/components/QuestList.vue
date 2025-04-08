@@ -1,12 +1,29 @@
 <script setup lang="ts">
+/**
+ * QuestList.vue
+ *
+ * Displays and manages the list of user habits/quests.
+ * This component shows the list of habits, enables completion toggling,
+ * and provides swipe gestures for completing or removing habits.
+ */
 import { ref } from 'vue';
 import { useI18n } from '../composables/useI18n';
 import type { Habit } from '../types/habit';
 
+/**
+ * Component Props
+ * @property {Habit[]} habits - Array of Habit objects to display
+ */
 const props = defineProps<{
   habits: Habit[];
 }>();
 
+/**
+ * Component Events
+ * @event toggle - When a habit's completion status is toggled
+ * @event remove - When a habit is removed
+ * @event timer - When the timer is requested for a habit
+ */
 const emit = defineEmits<{
   (e: 'toggle', habit: Habit, mouseEvent?: MouseEvent): void;
   (e: 'remove', habitId: string): void;
@@ -20,12 +37,25 @@ const touchStart = ref({ x: 0, y: 0 });
 const swipeItem = ref<Habit | null>(null);
 const swipeThreshold = 50;
 
-// This function just passes the event to the parent component
+/**
+ * Handles toggling habit completion status.
+ * Passes the event to the parent component through the toggle event.
+ *
+ * @param {Habit} habit - The habit to toggle
+ * @param {Event} e - Optional DOM event that triggered the toggle
+ */
 const handleToggle = (habit: Habit, e?: Event) => {
   const mouseEvent = e instanceof MouseEvent ? e : undefined;
   emit('toggle', habit, mouseEvent);
 };
 
+/**
+ * Handles the start of touch gesture for swipe actions.
+ * Records initial touch position and the habit being interacted with.
+ *
+ * @param {TouchEvent} event - The touch start event
+ * @param {Habit} habit - The habit being interacted with
+ */
 const handleTouchStart = (event: TouchEvent, habit: Habit) => {
   touchStart.value = {
     x: event.touches[0].clientX,
@@ -34,6 +64,13 @@ const handleTouchStart = (event: TouchEvent, habit: Habit) => {
   swipeItem.value = habit;
 };
 
+/**
+ * Handles touch movement for swipe actions.
+ * Determines swipe direction and updates UI accordingly.
+ * Cancels swipe if vertical movement is greater than horizontal.
+ *
+ * @param {TouchEvent} event - The touch move event
+ */
 const handleTouchMove = (event: TouchEvent) => {
   if (!swipeItem.value) return;
 
@@ -54,6 +91,15 @@ const handleTouchMove = (event: TouchEvent) => {
   element.style.transition = 'none';
 };
 
+/**
+ * Handles the end of a touch gesture for swipe actions.
+ * Determines if swipe threshold was met and triggers appropriate action:
+ * - Right swipe: Toggle habit completion
+ * - Left swipe: Delete habit
+ * Also provides haptic feedback when available.
+ *
+ * @param {TouchEvent} event - The touch end event
+ */
 const handleTouchEnd = async (event: TouchEvent) => {
   if (!swipeItem.value) return;
 
@@ -108,7 +154,7 @@ const handleTouchEnd = async (event: TouchEvent) => {
             <input
               type="checkbox"
               :checked="habit.completed"
-              @change="($event) => handleToggle(habit, $event)"
+              @change="(e) => handleToggle(habit, e)"
               class="habit-checkbox"
             />
             <span class="habit-name" :class="{ completed: habit.completed }">
@@ -137,15 +183,29 @@ const handleTouchEnd = async (event: TouchEvent) => {
 
 <style scoped>
 .quest-list {
-  background: linear-gradient(135deg, rgba(28, 28, 45, 0.95), rgba(20, 20, 35, 0.95));
-  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(18, 18, 35, 0.95), rgba(10, 10, 25, 0.95));
+  border-radius: 8px;
   padding: 24px;
   margin: 20px 0;
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 8px 32px rgba(0, 0, 0, 0.6),
     0 0 0 1px rgba(106, 90, 205, 0.2);
   position: relative;
   overflow: hidden;
+  font-family: 'Roboto', sans-serif;
+  border: 1px solid rgba(106, 90, 205, 0.2);
+}
+
+.quest-list::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 100px;
+  height: 100px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50,5 L95,50 L50,95 L5,50 Z' fill='none' stroke='%236a5acd' stroke-width='1' opacity='0.3'/%3E%3Cpath d='M50,15 L85,50 L50,85 L15,50 Z' fill='none' stroke='%236a5acd' stroke-width='1' opacity='0.3'/%3E%3Cpath d='M50,25 L75,50 L50,75 L25,50 Z' fill='none' stroke='%239370db' stroke-width='1' opacity='0.3'/%3E%3C/svg%3E") no-repeat center center;
+  opacity: 0.3;
+  pointer-events: none;
 }
 
 .quest-header {
@@ -159,32 +219,38 @@ const handleTouchEnd = async (event: TouchEvent) => {
 .quest-header h3 {
   color: #fff;
   font-size: 1.4rem;
-  font-weight: 600;
-  letter-spacing: 3px;
+  font-weight: 700;
+  letter-spacing: 2px;
   text-shadow: 0 0 15px rgba(106, 90, 205, 0.7);
   margin: 0;
   padding: 0 30px;
   position: relative;
+  font-family: 'Roboto', sans-serif;
+  text-transform: uppercase;
 }
 
-.quest-header h3::before,
-.quest-header h3::after {
+/* Solo Leveling styled runes */
+.rune-symbol {
+  width: 24px;
+  height: 24px;
+  position: relative;
+}
+
+.rune-symbol.left::before,
+.rune-symbol.right::before {
   content: '';
   position: absolute;
-  top: 50%;
-  width: 40px;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, #6a5acd, transparent);
+  width: 24px;
+  height: 24px;
+  background-color: #6a5acd;
+  opacity: 0.8;
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  animation: glowPulse 2s infinite alternate;
 }
 
-.quest-header h3::before {
-  left: -20px;
-  transform: translateX(-100%);
-}
-
-.quest-header h3::after {
-  right: -20px;
-  transform: translateX(100%);
+@keyframes glowPulse {
+  from { box-shadow: 0 0 5px rgba(106, 90, 205, 0.5); opacity: 0.5; }
+  to { box-shadow: 0 0 15px rgba(106, 90, 205, 0.8); opacity: 0.8; }
 }
 
 .habit-list {
@@ -194,14 +260,24 @@ const handleTouchEnd = async (event: TouchEvent) => {
 }
 
 .habit-item {
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 12px;
+  background: rgba(15, 15, 30, 0.7);
+  border-radius: 0;
   padding: 16px;
   margin-bottom: 16px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border: 1px solid rgba(106, 90, 205, 0.2);
   position: relative;
   overflow: hidden;
+  /* Solo Leveling clip-path for quest items */
+  clip-path: polygon(
+    0% 0%,
+    95% 0%,
+    100% 30%,
+    100% 100%,
+    5% 100%,
+    0% 70%,
+    0% 0%
+  );
 }
 
 .habit-item::before {
@@ -209,24 +285,37 @@ const handleTouchEnd = async (event: TouchEvent) => {
   position: absolute;
   top: 0;
   left: 0;
-  width: 4px;
+  width: 3px;
   height: 100%;
   background: linear-gradient(to bottom, #6a5acd, #9370db);
-  opacity: 0;
+  opacity: 0.5;
   transition: opacity 0.3s ease;
 }
 
 .habit-item:hover {
-  transform: translateY(-2px) scale(1.01);
-  background: rgba(255, 255, 255, 0.05);
+  transform: translateY(-2px);
+  background: rgba(25, 25, 45, 0.7);
   border-color: rgba(106, 90, 205, 0.4);
   box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.2),
-    0 0 20px rgba(106, 90, 205, 0.2);
+    0 8px 24px rgba(0, 0, 0, 0.4),
+    0 0 20px rgba(106, 90, 205, 0.3);
+}
+
+.habit-item::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  background-color: #6a5acd;
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+  opacity: 0.8;
 }
 
 .habit-item:hover::before {
   opacity: 1;
+  width: 5px;
 }
 
 .habit-content {
@@ -247,24 +336,25 @@ const handleTouchEnd = async (event: TouchEvent) => {
   gap: 12px;
 }
 
+/* Solo Leveling checkbox style */
 .habit-checkbox {
   appearance: none;
   -webkit-appearance: none;
   width: 24px;
   height: 24px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(10, 10, 25, 0.7);
   border: 2px solid rgba(106, 90, 205, 0.5);
   position: relative;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   flex-shrink: 0;
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
 }
 
 .habit-checkbox:hover {
-  background: rgba(106, 90, 205, 0.1);
+  background: rgba(106, 90, 205, 0.15);
   border-color: #6a5acd;
-  box-shadow: 0 0 15px rgba(106, 90, 205, 0.3);
+  box-shadow: 0 0 15px rgba(106, 90, 205, 0.5);
   transform: scale(1.1);
 }
 
@@ -282,21 +372,22 @@ const handleTouchEnd = async (event: TouchEvent) => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  text-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
 }
 
 @keyframes checkmark {
-  0% { transform: scale(0.8); opacity: 0; }
-  50% { transform: scale(1.2); }
-  100% { transform: scale(1); opacity: 1; }
+  0% { transform: scale(0.8); opacity: 0; box-shadow: 0 0 0 rgba(106, 90, 205, 0); }
+  50% { transform: scale(1.2); box-shadow: 0 0 20px rgba(106, 90, 205, 0.7); }
+  100% { transform: scale(1); opacity: 1; box-shadow: 0 0 10px rgba(106, 90, 205, 0.5); }
 }
 
 .habit-name {
-  color: #fff;
   font-size: 1rem;
-  font-weight: 500;
+  color: #e0e0ff;
+  flex: 1;
+  font-family: 'Roboto', sans-serif;
+  font-weight: 400;
   transition: all 0.3s ease;
-  text-shadow: 0 0 10px rgba(106, 90, 205, 0.3);
 }
 
 .completed {
@@ -304,11 +395,12 @@ const handleTouchEnd = async (event: TouchEvent) => {
   color: rgba(147, 112, 219, 0.7);
 }
 
+/* Solo Leveling style badges */
 .streak-badge {
-  background: rgba(255, 69, 0, 0.1);
-  color: #ff6347;
+  background: rgba(255, 69, 0, 0.15);
+  color: #ff9370;
   padding: 4px 10px;
-  border-radius: 20px;
+  border-radius: 0;
   font-size: 0.8rem;
   font-weight: 600;
   display: flex;
@@ -316,91 +408,140 @@ const handleTouchEnd = async (event: TouchEvent) => {
   gap: 4px;
   border: 1px solid rgba(255, 69, 0, 0.3);
   box-shadow: 0 0 10px rgba(255, 69, 0, 0.2);
+  clip-path: polygon(10% 0%, 100% 0%, 90% 100%, 0% 100%);
+  padding-left: 14px;
+  padding-right: 14px;
 }
 
 .time-badge {
-  background: rgba(106, 90, 205, 0.1);
-  color: #9370db;
+  background: rgba(106, 90, 205, 0.15);
+  color: #a990ff;
   padding: 4px 10px;
-  border-radius: 20px;
+  border-radius: 0;
   font-size: 0.8rem;
   font-weight: 600;
   border: 1px solid rgba(106, 90, 205, 0.3);
   box-shadow: 0 0 10px rgba(106, 90, 205, 0.2);
+  clip-path: polygon(10% 0%, 100% 0%, 90% 100%, 0% 100%);
+  padding-left: 14px;
+  padding-right: 14px;
 }
 
 .timer-button,
 .delete-button {
   width: 32px;
   height: 32px;
-  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(15, 15, 30, 0.7);
   border: 1px solid rgba(106, 90, 205, 0.3);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
 }
 
 .timer-button {
-  color: #9370db;
+  color: #a990ff;
 }
 
 .timer-button:hover {
-  background: rgba(106, 90, 205, 0.1);
+  background: rgba(106, 90, 205, 0.25);
   transform: scale(1.1);
-  box-shadow: 0 0 15px rgba(106, 90, 205, 0.3);
+  box-shadow: 0 0 15px rgba(106, 90, 205, 0.5);
 }
 
 .delete-button {
-  color: #ff6347;
+  color: #ff9370;
   border-color: rgba(255, 69, 0, 0.3);
 }
 
 .delete-button:hover {
-  background: rgba(255, 69, 0, 0.1);
+  background: rgba(255, 69, 0, 0.15);
   transform: scale(1.1);
-  box-shadow: 0 0 15px rgba(255, 69, 0, 0.3);
+  box-shadow: 0 0 15px rgba(255, 69, 0, 0.4);
 }
 
 @media (max-width: 768px) {
   .quest-list {
     margin: 16px 0;
-    padding: 20px;
+    padding: 20px 16px;
+    border-radius: 6px;
   }
 
   .quest-header h3 {
     font-size: 1.2rem;
+    letter-spacing: 1px;
   }
 
   .habit-item {
     margin-bottom: 12px;
+    padding: 14px 12px;
   }
 
   .habit-checkbox {
-    width: 28px;
-    height: 28px;
+    width: 26px;
+    height: 26px;
   }
 
   .habit-name {
     font-size: 0.95rem;
   }
 
+  .habit-right {
+    gap: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .quest-list {
+    padding: 16px 12px;
+    margin: 12px 0;
+  }
+
+  .quest-header h3 {
+    font-size: 1.1rem;
+    padding: 0 20px;
+  }
+
+  .habit-left {
+    gap: 12px;
+  }
+
+  .habit-item {
+    padding: 12px 10px;
+  }
+
+  .habit-checkbox {
+    width: 24px;
+    height: 24px;
+  }
+
+  .habit-name {
+    font-size: 0.9rem;
+  }
+
+  .streak-badge, .time-badge {
+    font-size: 0.75rem;
+    padding: 3px 8px;
+  }
+
   .timer-button,
   .delete-button {
-    width: 36px;
-    height: 36px;
+    width: 28px;
+    height: 28px;
   }
 }
 
 @media (prefers-contrast: high) {
   .quest-list {
     border: 2px solid #6a5acd;
+    background: #101020;
   }
 
   .habit-item {
     border: 2px solid #6a5acd;
+    background: #151525;
   }
 }
 
@@ -411,6 +552,11 @@ const handleTouchEnd = async (event: TouchEvent) => {
 
   .habit-checkbox:hover {
     transform: none;
+  }
+
+  .rune-symbol.left::before,
+  .rune-symbol.right::before {
+    animation: none;
   }
 }
 </style>
