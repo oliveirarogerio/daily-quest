@@ -1,118 +1,306 @@
 <script setup lang="ts">
+/**
+ * Notification.vue
+ *
+ * Toast notification system for user feedback.
+ * Displays temporary notifications with different status types (success, error, info, warning).
+ * Features animated appearance/dismissal and Solo Leveling-inspired styling.
+ */
+
+/**
+ * Component Props
+ * @property {boolean} show - Controls notification visibility
+ * @property {string} message - The notification message text to display
+ * @property {string} type - Optional notification type: 'success', 'error', 'info', or 'warning'
+ */
 defineProps<{
   show: boolean;
   message: string;
+  type?: string;
 }>();
 </script>
 
 <template>
-  <div class="notification" v-if="show">
-    <img src="../assets/notification-icon.svg" alt="Notification" class="notification-icon" />
-    <div class="notification-message">{{ message }}</div>
+  <div class="notification-container" v-if="show">
+    <div class="notification" :class="type">
+      <span class="icon">
+        <template v-if="type === 'success'">✓</template>
+        <template v-else-if="type === 'error'">✕</template>
+        <template v-else-if="type === 'warning'">⚠</template>
+        <template v-else>ℹ</template>
+      </span>
+      <div class="content">{{ message }}</div>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.notification {
+.notification-container {
   position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: linear-gradient(135deg, rgba(26, 26, 42, 0.98), rgba(26, 26, 42, 0.95));
-  border: 1px solid rgba(106, 90, 205, 0.5);
-  border-radius: 12px;
-  padding: 16px 24px;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  padding-top: max(16px, env(safe-area-inset-top, 16px));
+}
+
+.notification {
+  margin: 8px;
+  max-width: 90%;
+  width: 400px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, rgba(20, 20, 40, 0.95), rgba(10, 10, 25, 0.98));
+  color: rgba(255, 255, 255, 0.9);
+  border-left: 3px solid;
+  backdrop-filter: blur(10px);
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.5),
+    0 0 15px rgba(106, 90, 205, 0.3);
   display: flex;
   align-items: center;
-  box-shadow:
-    0 4px 15px rgba(0, 0, 0, 0.3),
-    0 0 30px rgba(106, 90, 205, 0.2);
-  z-index: 1000;
-  animation: slideUpFade 0.3s ease-out;
-  backdrop-filter: blur(10px);
-  max-width: 90%;
-  width: auto;
-  margin: 0 20px;
+  pointer-events: auto;
+  animation: slideIn 0.3s ease forwards;
+  position: relative;
+  font-weight: 500;
+  overflow: hidden;
+  /* Solo Leveling style geometric shape */
+  clip-path: polygon(
+    0% 0%,
+    98% 0%,
+    100% 10%,
+    100% 100%,
+    2% 100%,
+    0% 90%
+  );
 }
 
-.notification-icon {
+/* Solo Leveling style energy line */
+.notification::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(159, 255, 253, 0.7), transparent);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.notification.success {
+  border-color: #4caf50;
+}
+
+.notification.success::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at left center, rgba(76, 175, 80, 0.2), transparent 70%);
+  z-index: -1;
+}
+
+.notification.error {
+  border-color: #f44336;
+}
+
+.notification.error::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at left center, rgba(244, 67, 54, 0.2), transparent 70%);
+  z-index: -1;
+}
+
+.notification.info {
+  border-color: #a4ffff;
+}
+
+.notification.info::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at left center, rgba(159, 255, 253, 0.2), transparent 70%);
+  z-index: -1;
+}
+
+.notification.warning {
+  border-color: #ff9800;
+}
+
+.notification.warning::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at left center, rgba(255, 152, 0, 0.2), transparent 70%);
+  z-index: -1;
+}
+
+.icon {
+  margin-right: 12px;
+  font-size: 1.2rem;
+  /* Solo Leveling style glow effect */
+  filter: drop-shadow(0 0 3px currentColor);
+}
+
+.notification.success .icon {
+  color: #4caf50;
+  animation: iconPulse 2s infinite;
+}
+
+.notification.error .icon {
+  color: #f44336;
+  animation: iconPulse 2s infinite;
+}
+
+.notification.info .icon {
+  color: #a4ffff;
+  animation: iconPulse 2s infinite;
+}
+
+.notification.warning .icon {
+  color: #ff9800;
+  animation: iconPulse 2s infinite;
+}
+
+@keyframes iconPulse {
+  0%, 100% { opacity: 0.8; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+.content {
+  flex: 1;
+  font-size: 0.95rem;
+  letter-spacing: 0.3px;
+}
+
+.close-button {
+  margin-left: 8px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  border-radius: 50%;
   width: 24px;
   height: 24px;
-  margin-right: 12px;
-  animation: pulseIcon 2s infinite;
-  filter: drop-shadow(0 0 5px rgba(106, 90, 205, 0.5));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  padding: 0;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
 }
 
-.notification-message {
-  color: #ffffff;
-  font-weight: 500;
-  font-size: 0.95rem;
-  line-height: 1.4;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-  flex: 1;
-  word-break: break-word;
+/* Solo Leveling style close button */
+.close-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(159, 255, 253, 0.1);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  transform: scale(0.9);
 }
 
-@keyframes slideUpFade {
+.close-button:hover::before,
+.close-button:focus::before {
+  opacity: 1;
+}
+
+.close-button:hover,
+.close-button:focus {
+  color: rgba(255, 255, 255, 0.9);
+  outline: none;
+}
+
+.notification.exiting {
+  animation: slideOut 0.3s ease forwards;
+}
+
+@keyframes slideIn {
   from {
+    transform: translateY(-100%);
     opacity: 0;
-    transform: translate(-50%, 20px);
   }
   to {
-    opacity: 1;
-    transform: translate(-50%, 0);
-  }
-}
-
-@keyframes pulseIcon {
-  0% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.1);
-    opacity: 0.8;
-  }
-  100% {
-    transform: scale(1);
+    transform: translateY(0);
     opacity: 1;
   }
 }
 
-/* Mobile optimization */
-@media (max-width: 768px) {
+@keyframes slideOut {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
   .notification {
-    bottom: max(20px, env(safe-area-inset-bottom));
-    padding: 14px 20px;
-    border-radius: 16px;
+    width: 85%;
+    padding: 10px 14px;
+    margin: 6px;
   }
 
-  .notification-message {
+  .icon {
+    margin-right: 10px;
+    font-size: 1.1rem;
+  }
+
+  .content {
     font-size: 0.9rem;
   }
 }
 
-/* High contrast mode */
+/* High contrast and reduced motion */
 @media (prefers-contrast: high) {
   .notification {
-    background: #1a1a2a;
-    border: 2px solid #6a5acd;
+    background: #101020;
+    border-width: 2px;
+    box-shadow: 0 0 0 1px white;
   }
 
-  .notification-message {
-    color: #ffffff;
-    text-shadow: none;
-  }
+  .notification.success { border-color: #4caf50; background-color: #0a200a; }
+  .notification.error { border-color: #f44336; background-color: #200a0a; }
+  .notification.info { border-color: #a4ffff; background-color: #0a2020; }
+  .notification.warning { border-color: #ff9800; background-color: #201a0a; }
 }
 
-/* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .notification {
     animation: none;
   }
 
-  .notification-icon {
+  .notification.exiting {
     animation: none;
+    opacity: 0;
+  }
+
+  .notification::after {
+    animation: none;
+  }
+
+  .icon {
+    animation: none !important;
   }
 }
 </style>
+
