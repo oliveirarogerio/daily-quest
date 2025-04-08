@@ -1,20 +1,46 @@
 <script setup lang="ts">
+/**
+ * PullToRefresh.vue
+ *
+ * Pull-to-refresh gesture handler for mobile UX.
+ * Provides visual feedback for pull-to-refresh functionality,
+ * including animated pull indicator with progress visualization
+ * and threshold-based activation.
+ */
 import { ref, computed } from 'vue';
 import { useI18n } from '../composables/useI18n';
 
+/**
+ * Component Props
+ * @property {boolean} isRefreshing - Whether refresh is in progress
+ * @property {number} pullOffset - Current pull distance
+ * @property {number} threshold - Threshold distance to trigger refresh
+ */
 const props = defineProps<{
   isRefreshing: boolean;
   pullOffset: number;
   threshold: number;
 }>();
 
+/**
+ * Component Events
+ * @event refresh - When pull exceeds threshold and is released
+ */
 const emit = defineEmits<{
   (event: 'refresh'): void;
 }>();
 
 const { t } = useI18n();
 
+/**
+ * Computed progress percentage (0-1) based on pull distance and threshold
+ */
 const progress = computed(() => Math.min(1, props.pullOffset / props.threshold));
+
+/**
+ * Computed styles for the pull indicator based on pull distance and progress
+ * Controls the position, rotation, and opacity of the indicator
+ */
 const indicatorStyle = computed(() => ({
   transform: `translateY(${props.pullOffset}px) rotate(${progress.value * 360}deg)`,
   opacity: progress.value
