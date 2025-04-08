@@ -1,5 +1,10 @@
 export const translations = {
   en: {
+    nav: {
+      login: 'Login',
+      timer: 'Timer',
+      stats: 'Stats',
+    },
     system: {
       title: 'SYSTEM',
       date: 'Date',
