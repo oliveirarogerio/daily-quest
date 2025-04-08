@@ -1,4 +1,11 @@
 <script setup lang="ts">
+/**
+ * Auth.vue
+ *
+ * Authentication component for user login and registration.
+ * Handles user authentication with email/password and Google sign-in options,
+ * form validation, error handling, user feedback, and new player creation in Firestore.
+ */
 import { ref } from 'vue'
 import { useCurrentUser } from 'vuefire'
 import {
@@ -12,9 +19,13 @@ import {
 import { doc, setDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useI18n } from '../composables/useI18n'
+import { useNotification } from '../composables/useNotification'
 
 const { t } = useI18n()
-const user = useCurrentUser()
+const { displayNotification } = useNotification()
+const user = useCurrentUser() // Current user from VueFire
+
+// Form state
 const email = ref('')
 const name = ref('')
 const password = ref('')
@@ -22,36 +33,54 @@ const confirmPassword = ref('')
 const isRegistering = ref(false)
 const error = ref('')
 const isLoading = ref(false)
-const showLoginPrompt = ref(true)
-const showAuthForm = ref(false)
+const showLoginPrompt = ref(false)
+const showAuthForm = ref(true)
 const auth = getAuth()
 
+/**
+ * Handles the authentication process for both login and registration.
+ * Validates form inputs, calls appropriate Firebase auth methods,
+ * creates player data for new users, and provides feedback via notifications.
+ */
 const handleAuth = async () => {
   try {
     isLoading.value = true
     error.value = ''
 
+    // Validate password match for registration
     if (isRegistering.value && password.value !== confirmPassword.value) {
       error.value = t('auth.passwordMismatch')
       return
     }
 
+    // Select appropriate auth function based on mode
     const authFunction = isRegistering.value
       ? createUserWithEmailAndPassword
       : signInWithEmailAndPassword
     const result = await authFunction(auth, email.value, password.value)
 
+    // For new users, create player data in Firestore
     if (isRegistering.value) {
       await createPlayer(result)
+      displayNotification(t('auth.accountCreated') || 'Account created successfully!')
+    } else {
+      displayNotification(t('auth.loginSuccess') || 'Login successful!')
     }
     resetForm()
   } catch (e: any) {
     error.value = e.message
+    displayNotification(e.message, 'error')
   } finally {
     isLoading.value = false
   }
 }
 
+/**
+ * Creates a new player document in Firestore for registered users.
+ * Sets up initial player state with level 1, 0 XP, and Rank E.
+ *
+ * @param {Object} result - Firebase auth result object containing user info
+ */
 async function createPlayer(result: any) {
   const playerRef = doc(db, 'players', result.user.uid)
   await setDoc(playerRef, {
@@ -64,19 +93,29 @@ async function createPlayer(result: any) {
   })
 }
 
+/**
+ * Handles Google Sign-In authentication.
+ * Uses Firebase popup authentication flow with Google provider.
+ */
 const handleGoogleSignIn = async () => {
   try {
     isLoading.value = true
     const provider = new GoogleAuthProvider()
     await signInWithPopup(auth, provider)
+    displayNotification(t('auth.loginSuccess') || 'Login successful!')
     resetForm()
-  } catch (e) {
+  } catch (e: any) {
     console.error('Google Sign-In Error:', e)
+    displayNotification(e.message, 'error')
   } finally {
     isLoading.value = false
   }
 }
 
+/**
+ * Resets the form state and hides the auth form.
+ * Called after successful authentication or when dismissing the form.
+ */
 const resetForm = () => {
   email.value = ''
   password.value = ''
@@ -86,13 +125,19 @@ const resetForm = () => {
   showAuthForm.value = false
 }
 
-const handleSignOut = () => signOut(auth)
-
-const startAuth = () => {
-  showLoginPrompt.value = false
-  showAuthForm.value = true
+/**
+ * Handles user sign out.
+ * Signs out from Firebase Auth and displays success notification.
+ */
+const handleSignOut = () => {
+  signOut(auth)
+  displayNotification(t('auth.logoutSuccess') || 'Logged out successfully!')
 }
 
+/**
+ * Dismisses the auth component without taking action.
+ * Hides both the login prompt and auth form.
+ */
 const dismissAuth = () => {
   showLoginPrompt.value = false
   showAuthForm.value = false
@@ -102,22 +147,6 @@ const dismissAuth = () => {
 <template>
   <div class="auth-container">
     <template v-if="!user">
-      <!-- Login Prompt -->
-      <div v-if="showLoginPrompt" class="login-prompt">
-        <div class="login-prompt-content">
-          <button
-            class="auth-btn register-btn"
-            @click.stop="
-              () => {
-                startAuth()
-              }
-            "
-          >
-            {{ t('auth.login') }}
-          </button>
-        </div>
-      </div>
-
       <!-- Auth Form -->
       <div v-if="showAuthForm" class="auth-mobile">
         <div class="auth-content">
@@ -126,7 +155,6 @@ const dismissAuth = () => {
             <p class="auth-subtitle">
               {{ isRegistering ? t('auth.createAccount') : t('auth.welcomeBack') }}
             </p>
-            <button class="close-btn" @click="dismissAuth">×</button>
           </div>
 
           <form @submit.prevent="handleAuth" class="auth-form">
@@ -223,21 +251,17 @@ const dismissAuth = () => {
     </template>
 
     <div v-else class="user-info">
+      <div class="user-avatar">
+        <img
+          :src="user.photoURL || '../assets/hunter-icon.svg'"
+          alt="User Avatar"
+          class="avatar-img"
+        />
+      </div>
       <div class="user-details">
         <p class="user-name">{{ user.displayName || user.email }}</p>
         <button class="signout-btn" @click="handleSignOut">{{ t('auth.signOut') }}</button>
       </div>
-    </div>
-
-    <div class="footer">
-      <a
-        href="https://github.com/oliveirarogerio"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="footer-link"
-      >
-        {{ t('footer.madeBy') }}
-      </a>
     </div>
   </div>
 </template>
@@ -250,192 +274,251 @@ const dismissAuth = () => {
   padding: 0;
   position: relative;
   z-index: 5;
+  font-family: 'Roboto', sans-serif;
 }
 
-/* Footer styling */
-.footer {
-  margin-top: 20px;
-  padding-top: 15px;
-  border-top: 1px solid rgba(106, 90, 205, 0.3);
-  text-align: center;
+.user-info {
+  background: linear-gradient(135deg, rgba(28, 28, 45, 0.95), rgba(20, 20, 35, 0.95));
+  border: 1px solid rgba(106, 90, 205, 0.3);
+  border-radius: 12px;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.3),
+    0 0 40px rgba(106, 90, 205, 0.1);
   position: relative;
-  z-index: 1;
-}
-
-.footer-link {
-  color: #9370db;
-  text-decoration: none;
-  font-size: 0.9rem;
-  transition: all 0.3s ease;
-  display: inline-flex;
+  overflow: hidden;
+  display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 16px;
 }
 
-.footer-link:hover {
-  color: #6a5acd;
-  transform: translateY(-2px);
-  text-shadow: 0 0 5px rgba(106, 90, 205, 0.7);
-}
-
-.footer-link::before {
-  font-size: 1rem;
-}
-
-/* Responsive styles for footer */
-@media (max-width: 768px) {
-  .footer {
-    margin-top: 15px;
-    padding-top: 12px;
-  }
-
-  .footer-link {
-    font-size: 0.85rem;
-  }
-}
-
-.auth-mobile {
-  position: fixed;
+.user-info::before {
+  content: '';
+  position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(26, 26, 42, 0.95);
-  backdrop-filter: blur(10px);
-  z-index: 100;
+  background:
+    linear-gradient(45deg, transparent 45%, rgba(106, 90, 205, 0.1) 50%, transparent 55%),
+    linear-gradient(-45deg, transparent 45%, rgba(106, 90, 205, 0.1) 50%, transparent 55%);
+  background-size: 300% 300%;
+  animation: gradientFlow 3s ease infinite;
+  pointer-events: none;
+}
+
+.user-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid #6a5acd;
+  box-shadow: 0 0 15px rgba(106, 90, 205, 0.5);
+  flex-shrink: 0;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@keyframes gradientFlow {
+  0%, 100% { background-position: 0% 0%; }
+  50% { background-position: 100% 100%; }
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.user-name {
+  color: #fff;
+  font-weight: 500;
+  margin: 0;
+  font-size: 1rem;
+  text-shadow: 0 0 10px rgba(106, 90, 205, 0.5);
+}
+
+.signout-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: rgba(255, 69, 58, 0.1);
+  border: 1px solid rgba(255, 69, 58, 0.3);
+  color: #ff453a;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 500;
+  white-space: nowrap;
+  align-self: flex-start;
+}
+
+.signout-btn:hover {
+  background: rgba(255, 69, 58, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 69, 58, 0.2);
+}
+
+.signout-btn:active {
+  transform: translateY(1px);
+}
+
+/* Auth Form Styling */
+.auth-mobile {
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
-    env(safe-area-inset-left);
 }
 
 .auth-content {
   width: 100%;
-  max-width: 350px;
-  padding: 2rem;
-  background: rgba(42, 42, 68, 0.5);
+  background: linear-gradient(135deg, rgba(28, 28, 45, 0.95), rgba(20, 20, 35, 0.95));
   border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(106, 90, 205, 0.2);
-  margin: 1rem;
+  padding: 24px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(106, 90, 205, 0.2);
   position: relative;
+  overflow: hidden;
+}
+
+.auth-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(106, 90, 205, 0.5), transparent);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 .auth-header {
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 24px;
+  position: relative;
 }
 
 .auth-header h2 {
   color: #fff;
   font-size: 1.75rem;
-  margin-bottom: 0.5rem;
+  margin: 0 0 8px;
   font-weight: 600;
+  text-shadow: 0 0 20px rgba(106, 90, 205, 0.5);
+  letter-spacing: 1px;
+  font-family: 'Roboto', sans-serif;
 }
 
 .auth-subtitle {
-  color: #9370db;
-  font-size: 1rem;
-  opacity: 0.8;
-}
-
-.auth-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.95rem;
+  margin: 0;
 }
 
 .form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  margin-bottom: 20px;
 }
 
-label {
-  color: #fff;
+.form-group label {
+  display: block;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 8px;
   font-size: 0.9rem;
   font-weight: 500;
 }
 
-input {
+.form-group input {
   width: 100%;
-  padding: 0.75rem;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.1);
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(106, 90, 205, 0.3);
+  border-radius: 8px;
   color: #fff;
   font-size: 1rem;
   transition: all 0.3s ease;
+  font-family: 'Roboto', sans-serif;
 }
 
-input:focus {
+.form-group input:focus {
   outline: none;
-  border-color: #6a5acd;
+  border-color: rgba(106, 90, 205, 0.8);
   box-shadow: 0 0 0 2px rgba(106, 90, 205, 0.2);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .primary-btn {
   width: 100%;
-  padding: 0.875rem;
-  border-radius: 8px;
+  padding: 14px;
   background: linear-gradient(135deg, #6a5acd, #9370db);
+  border: none;
+  border-radius: 8px;
   color: #fff;
   font-size: 1rem;
   font-weight: 600;
-  border: none;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  font-family: 'Roboto', sans-serif;
 }
 
-.primary-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(106, 90, 205, 0.3);
-}
-
-.primary-btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.divider {
-  display: flex;
-  align-items: center;
-  text-align: center;
-  margin: 1rem 0;
-}
-
-.divider::before,
-.divider::after {
+.primary-btn::before {
   content: '';
-  flex: 1;
-  border-bottom: 1px solid rgba(106, 90, 205, 0.3);
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: 0.5s;
 }
 
-.divider span {
-  padding: 0 1rem;
-  color: #9370db;
-  font-size: 0.9rem;
+.primary-btn:hover::before {
+  left: 100%;
+}
+
+.primary-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(106, 90, 205, 0.4);
 }
 
 .google-btn {
   width: 100%;
-  padding: 0.75rem;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.1);
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(106, 90, 205, 0.3);
+  border-radius: 8px;
   color: #fff;
   font-size: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
+  gap: 12px;
   cursor: pointer;
   transition: all 0.3s ease;
+  margin-top: 16px;
+  font-family: 'Roboto', sans-serif;
 }
 
-.google-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.15);
+.google-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
 }
 
 .google-icon {
@@ -443,211 +526,103 @@ input:focus {
   height: 20px;
 }
 
+.divider {
+  display: flex;
+  align-items: center;
+  margin: 24px 0;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(106, 90, 205, 0.3);
+}
+
+.divider span {
+  padding: 0 16px;
+  font-size: 0.9rem;
+}
+
 .toggle-text {
   text-align: center;
-  color: #9370db;
+  color: rgba(255, 255, 255, 0.7);
   font-size: 0.9rem;
-  margin-top: 1rem;
+  margin-top: 20px;
 }
 
 .toggle-btn {
   background: none;
   border: none;
-  color: #fff;
+  color: #6a5acd;
   font-weight: 600;
   cursor: pointer;
   padding: 0;
-  margin-left: 0.5rem;
+  font-size: 0.9rem;
   transition: all 0.3s ease;
+  font-family: 'Roboto', sans-serif;
 }
 
-.toggle-btn:hover:not(:disabled) {
-  color: #6a5acd;
+.toggle-btn:hover {
+  color: #9370db;
+  text-shadow: 0 0 10px rgba(106, 90, 205, 0.5);
 }
 
 .error {
-  color: #ff6b6b;
-  font-size: 0.9rem;
-  text-align: center;
-  padding: 0.5rem;
-  background: rgba(255, 107, 107, 0.1);
+  background: rgba(255, 69, 58, 0.1);
+  border: 1px solid rgba(255, 69, 58, 0.3);
+  color: #ff453a;
+  padding: 12px;
   border-radius: 8px;
-  margin: 0;
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background: rgba(42, 42, 68, 0.5);
-  border-radius: 12px;
-  border: 1px solid rgba(106, 90, 205, 0.2);
-}
-
-@media (max-width: 768px) {
-  .user-info {
-    height: 80px;
-  }
-
-  .signout-btn {
-  }
-}
-
-.user-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  overflow: hidden;
-  border: 2px solid #6a5acd;
-}
-
-.user-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.user-details {
-  flex: 1;
-}
-
-.user-name {
-  color: #fff;
-  font-weight: 500;
-  margin: 0 0 0.5rem;
-}
-
-.signout-btn {
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(106, 90, 205, 0.3);
-  color: #9370db;
   font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.signout-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
+  margin: 16px 0;
+  text-align: center;
 }
 
 @media (max-width: 768px) {
-  .auth-content {
-    margin: 0.5rem;
-    padding: 1.5rem;
-    max-height: calc(100vh - 2rem);
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+  .auth-container {
+    padding: 0;
   }
 
-  .auth-mobile {
-    align-items: flex-start;
-    padding-top: max(2rem, env(safe-area-inset-top));
+  .auth-content {
+    padding: 20px;
   }
 
   .auth-header h2 {
-    font-size: 1.5rem !important;
+    font-size: 1.5rem;
+  }
+
+  .form-group input,
+  .primary-btn,
+  .google-btn {
+    padding: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-content {
+    padding: 16px;
+  }
+
+  .auth-header h2 {
+    font-size: 1.3rem;
   }
 
   .auth-subtitle {
-    font-size: 0.9rem !important;
-  }
-
-  input,
-  .primary-btn,
-  .google-btn {
-    font-size: 1rem !important;
-    padding: 0.75rem !important;
-    height: 48px;
-  }
-
-  .form-group {
-    margin-bottom: 1rem;
-  }
-
-  label {
-    font-size: 0.9rem;
-    margin-bottom: 0.25rem;
-  }
-}
-
-.login-prompt {
-  margin: 0.75rem auto;
-  padding: 0.75rem;
-  background: transparent;
-  width: 100%;
-  max-width: 280px;
-}
-
-.login-prompt-content {
-  display: flex;
-  gap: 0.75rem;
-  justify-content: center;
-}
-
-.auth-btn {
-  flex: 1;
-  padding: 0.75rem;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: none;
-  min-width: 100px;
-}
-
-.signin-btn {
-  background: rgba(106, 90, 205, 0.1);
-  color: #6a5acd;
-  border: 1px solid rgba(106, 90, 205, 0.3);
-}
-
-.signin-btn:hover {
-  background: rgba(106, 90, 205, 0.2);
-}
-
-.register-btn {
-  background: #6a5acd;
-  color: white;
-}
-
-.register-btn:hover {
-  background: #5a4abf;
-}
-
-@media (max-width: 768px) {
-  .login-prompt {
-    margin: 0.5rem auto;
-    padding: 0.5rem;
-    max-width: calc(100% - 2rem);
-  }
-
-  .auth-btn {
-    padding: 0.6rem;
     font-size: 0.85rem;
   }
-}
 
-.close-btn {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  background: none;
-  border: none;
-  color: #9370db;
-  font-size: 1.5rem;
-  cursor: pointer;
-  padding: 0.5rem;
-  line-height: 1;
-  transition: all 0.3s ease;
-}
+  .form-group label {
+    font-size: 0.85rem;
+  }
 
-.close-btn:hover {
-  color: #fff;
-  transform: scale(1.1);
+  .form-group input,
+  .primary-btn,
+  .google-btn {
+    padding: 10px;
+    font-size: 0.9rem;
+  }
 }
 </style>

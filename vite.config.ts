@@ -1,4 +1,3 @@
-
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
@@ -12,9 +11,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       devOptions: {
-        enabled: true
+        enabled: true,
       },
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+      includeAssets: ['favicon.ico', 'favicon.svg', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
         name: 'Daily Quest',
         short_name: 'DailyQuest',
@@ -30,15 +29,15 @@ export default defineConfig({
             src: '/icons/icon-192x192.png',
             sizes: '192x192',
             type: 'image/png',
-            purpose: 'any maskable'
+            purpose: 'any maskable',
           },
           {
             src: '/icons/icon-512x512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any'
-          }
-        ]
+            purpose: 'any',
+          },
+        ],
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
@@ -50,12 +49,12 @@ export default defineConfig({
               cacheName: 'google-fonts-cache',
               expiration: {
                 maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365 // <== 365 days
+                maxAgeSeconds: 60 * 60 * 24 * 365, // <== 365 days
               },
               cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
+                statuses: [0, 200],
+              },
+            },
           },
           {
             urlPattern: /^https:\/\/firestore\.googleapis\.com\/.*/i,
@@ -64,14 +63,14 @@ export default defineConfig({
               cacheName: 'firestore-cache',
               expiration: {
                 maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 // 24 hours
+                maxAgeSeconds: 60 * 60 * 24, // 24 hours
               },
               cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          }
-        ]
+                statuses: [0, 200],
+              },
+            },
+          },
+        ],
       },
       injectRegister: 'auto',
       strategies: 'generateSW',
@@ -83,21 +82,26 @@ export default defineConfig({
           manifest.mobile_web_app_capable = 'yes'
           manifest.apple_mobile_web_app_capable = 'yes'
           return { manifest }
-        }
-      ]
-    })
+        },
+      ],
+    }),
   ],
 
   server: {
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin',
-      'Cross-Origin-Embedder-Policy': 'require-corp'
-    }
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+    },
+    hmr: {
+      protocol: 'ws',
+      host: 'localhost',
+      port: 5173,
+    },
   },
   build: {
     rollupOptions: {
-      external: ['workbox-window']
+      external: ['workbox-window'],
     },
-    target: 'esnext'
-  }
+    target: 'esnext',
+  },
 })

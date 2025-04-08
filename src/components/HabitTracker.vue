@@ -1,1460 +1,579 @@
 <script setup lang="ts">
-import {onMounted, watch } from 'vue';
-import BackgroundAnimation from './BackgroundAnimation.vue';
+/**
+ * HabitTracker.vue
+ *
+ * Core container component that orchestrates the application's main functionality.
+ * Acts as the main application container that coordinates all sub-components and
+ * handles the core habit tracking functionality including:
+ * - Pull-to-refresh gesture for refreshing habits
+ * - Modal management for Timer, AddQuest, and Auth components
+ * - XP animation and habit completion handling
+ * - Integration with player progression system
+ * - Event handling for touch gestures
+ */
+import { ref, onMounted, reactive } from 'vue';
 import { useHabits } from '../composables/useHabits';
-import { usePlayer } from '../composables/usePlayer';
 import { useTimer } from '../composables/useTimer';
+import { usePlayer } from '../composables/usePlayer';
 import { useNotification } from '../composables/useNotification';
-import { useI18n } from '../composables/useI18n';
+import GameStatusBar from './GameStatusBar.vue';
+import QuestList from './QuestList.vue';
+import TimerModal from './TimerModal.vue';
+import AddQuestModal from './AddQuestModal.vue';
+import PullToRefresh from './PullToRefresh.vue';
+import BottomNavigation from './BottomNavigation.vue';
+import Auth from './Auth.vue';
 import type { Habit } from '../types/habit';
 
-// Core functionality
+// Import composable methods with destructuring
+const { habits, addHabit, removeHabit, toggleHabitCompletion, refreshHabits } = useHabits();
 const {
-  habits,
-  newHabitName,
-  addHabit,
-  deleteHabit,
-  toggleHabitCompletion,
-  formatTimeSpent,
-  resetDailyHabits,
-  updateHabit
-} = useHabits();
-
-const {
-  level,
-  xp,
-  xpToNextLevel,
-  xpPercentage,
-  rank,
-  addXP,
-  removeXP,
-  loadPlayerState,
-  showLevelUpAnimation
-} = usePlayer();
-
-const { state: notificationState, displayNotification } = useNotification();
-const { userLanguage, t } = useI18n();
-
-// Timer state
-const {
-  state: timerState,
-  formattedTime,
-  setTimerMode,
+  timerState,
   startTimer,
   pauseTimer,
-  stopTimer,
-  selectHabit: selectHabitForTimer,
-  closeTimer,
-  setOnTimerCompleted,
-  setCustomTime
+  formattedTime,
+  setTimerMode,
+  setTimer,
+  resetTimer,
+  selectHabit
 } = useTimer();
+const {
+  loadPlayerState,
+  addXP,
+  removeXP,
+  triggerXPAnimation,
+  isLoading: playerLoading
+} = usePlayer();
+const { displayNotification } = useNotification();
 
-// Wrapper function to handle adding a habit
-const handleAddHabit = async () => {
-  if (!newHabitName.value.trim()) return;
+// Modal states
+const showTimerModal = ref(false);
+const showAddModal = ref(false);
+const showLoginModal = ref(false);
+const selectedHabit = ref<Habit | null>(null);
 
-  await addHabit(newHabitName.value);
-  const earnedXP = 5; // XP for adding a new habit
-  addXP(earnedXP);
-  displayNotification(t('notifications.habitAdded', { amount: earnedXP }));
+// Pull-to-refresh state management
+const pullOffset = ref(0);
+const refreshThreshold = 100;
+const isRefreshing = ref(false);
+let touchStartY = 0;
+
+/**
+ * Handles the start of a touch event for pull-to-refresh functionality.
+ * Records the starting Y position of the touch for calculating pull distance.
+ *
+ * @param {TouchEvent} event - The touch event
+ */
+const handleTouchStart = (event: TouchEvent) => {
+  touchStartY = event.touches[0].clientY;
 };
 
-// Handle deleting a habit
-const handleDeleteHabit = async (habitId: string) => {
-  await deleteHabit(habitId);
-  displayNotification(t('notifications.questRemoved'));
-};
+/**
+ * Handles touch movement for pull-to-refresh functionality.
+ * Calculates the pull distance and updates the pull offset state
+ * which drives the visual pull indicator.
+ *
+ * @param {TouchEvent} event - The touch move event
+ */
+const handleTouchMove = (event: TouchEvent) => {
+  const touchY = event.touches[0].clientY;
+  const diff = touchY - touchStartY;
 
-// Complete habit and gain XP
-const handleToggleHabit = async (habit: Habit) => {
-  const xpChange = await toggleHabitCompletion(habit);
-
-  if (xpChange > 0) {
-    addXP(xpChange);
-    displayNotification(t('notifications.xpGained', { amount: xpChange }));
-  } else if (xpChange < 0) {
-    removeXP(Math.abs(xpChange));
-    displayNotification(t('notifications.xpLost', { amount: Math.abs(xpChange) }));
+  if (diff > 0 && window.scrollY === 0) {
+    pullOffset.value = Math.min(diff * 0.5, refreshThreshold);
+    event.preventDefault();
   }
 };
 
-// Initialize and setup
-onMounted(async () => {
-  loadPlayerState();
-  await resetDailyHabits();
+/**
+ * Handles the end of a touch event for pull-to-refresh.
+ * Triggers habit refresh if pull distance exceeds threshold,
+ * then resets the pull offset.
+ */
+const handleTouchEnd = async () => {
+  if (pullOffset.value >= refreshThreshold) {
+    isRefreshing.value = true;
+    await refreshHabits();
+    isRefreshing.value = false;
+  }
+  pullOffset.value = 0;
+};
 
-  // Check for day change when app is focused
-  window.addEventListener('focus', resetDailyHabits);
+// Modal touch gesture management
+const modalSwipeOffset = ref(0);
+let modalTouchStartY = 0;
 
-  return () => {
-    window.removeEventListener('focus', resetDailyHabits);
-  };
-});
+/**
+ * Handles touch start events on modals for swipe-to-dismiss gesture.
+ * Records starting Y position of the touch.
+ *
+ * @param {TouchEvent} event - The touch start event
+ */
+const handleModalTouchStart = (event: TouchEvent) => {
+  modalTouchStartY = event.touches[0].clientY;
+};
 
-// Save data to localStorage when it changes
-watch([level, xp], () => {
-  localStorage.setItem('level', level.value.toString());
-  localStorage.setItem('xp', xp.value.toString());
-}, { deep: true });
+/**
+ * Handles touch move events on modals for swipe-to-dismiss gesture.
+ * Updates the modal's position based on swipe distance.
+ *
+ * @param {TouchEvent} event - The touch move event
+ */
+const handleModalTouchMove = (event: TouchEvent) => {
+  const touchY = event.touches[0].clientY;
+  const diff = touchY - modalTouchStartY;
 
-// Setup timer completion callback
-setOnTimerCompleted(() => {
-  if (timerState.value.mode === 'pomodoro' && timerState.value.selectedHabit) {
-    const earnedXP = 15; // XP for completing a Pomodoro
-    addXP(earnedXP);
+  if (diff > 0) {
+    modalSwipeOffset.value = diff;
+    event.preventDefault();
+  }
+};
 
-    const habit = timerState.value.selectedHabit;
-    updateHabit(habit.id, {
-      timeSpent: (habit.timeSpent || 0) + 1,
-      completed: true
-    });
+/**
+ * Handles touch end events on modals for swipe-to-dismiss gesture.
+ * Closes the modal if swipe distance exceeds threshold.
+ */
+const handleModalTouchEnd = () => {
+  if (modalSwipeOffset.value > 100) {
+    closeModals();
+  }
+  modalSwipeOffset.value = 0;
+};
 
-    displayNotification(t('notifications.pomodoroCompleted', { amount: earnedXP }));
+/**
+ * Opens the timer modal for a specific habit.
+ * Sets the selected habit and shows the modal.
+ *
+ * @param {Habit} habit - The habit to associate with the timer
+ */
+const openTimerModal = (habit: Habit) => {
+  selectedHabit.value = habit;
+  selectHabit(habit);
+  showTimerModal.value = true;
+};
+
+/**
+ * Opens the modal for adding a new quest/habit.
+ */
+const openAddModal = () => {
+  showAddModal.value = true;
+};
+
+/**
+ * Opens the login/authentication modal.
+ */
+const openLoginModal = () => {
+  showLoginModal.value = true;
+};
+
+/**
+ * Closes all modals and resets related state.
+ * Pauses any active timer and clears selected habit.
+ */
+const closeModals = () => {
+  showTimerModal.value = false;
+  showAddModal.value = false;
+  showLoginModal.value = false;
+  selectedHabit.value = null;
+  pauseTimer();
+  selectHabit(null);
+};
+
+/**
+ * Handles the addition of a new habit from the AddQuestModal.
+ * Adds the habit and closes the modal.
+ *
+ * @param {string} name - The name of the new habit to add
+ */
+const handleAddHabit = (name: string) => {
+  addHabit(name);
+  closeModals();
+};
+
+/**
+ * Handles toggling the completion state of a habit.
+ *
+ * This function manages the complex flow of toggling a habit's completion state:
+ * 1. Loads player state to ensure XP operations can be performed
+ * 2. Toggles the habit completion state through the useHabits composable
+ * 3. Handles different XP change scenarios (positive for completing, negative for uncompleting)
+ * 4. Manages the coordination between animation and actual XP addition/removal
+ * 5. Properly extracts event coordinates regardless of event type (mouse or touch)
+ * 6. Forces UI updates across components using custom events
+ *
+ * The sequence timing is critical:
+ * - First trigger the animation at the click/touch location
+ * - Wait a small delay (100ms) to ensure animation is visible
+ * - Then add/remove the XP which updates the state
+ * - Force UI updates to ensure all components reflect the new state
+ * - Display a notification with feedback about the XP change
+ *
+ * The function also includes robust error handling for both mouse and touch events.
+ *
+ * @param {Habit} habit - The habit to toggle
+ * @param {MouseEvent|TouchEvent} event - The event that triggered the toggle (for animation positioning)
+ */
+const handleToggleHabit = async (habit: Habit, event?: MouseEvent | TouchEvent) => {
+  if (!habit) return;
+
+  try {
+    // Make sure player state is loaded before toggling habits
+    await loadPlayerState();
+
+    // Toggle habit completion state
+    const xpChange = await toggleHabitCompletion(habit);
+
+    // Handle XP change
+    if (xpChange > 0) {
+      // Get event coordinates for animation
+      let x = window.innerWidth / 2;
+      let y = window.innerHeight / 2;
+
+      // Extract coordinates based on event type
+      if (event) {
+        if (event instanceof MouseEvent) {
+          x = event.clientX;
+          y = event.clientY;
+        } else if (event instanceof TouchEvent && event.touches.length > 0) {
+          x = event.touches[0].clientX;
+          y = event.touches[0].clientY;
+        }
+      }
+
+      // Trigger animation first
+      triggerXPAnimation(xpChange, 'habit', x, y);
+
+      // Add XP after a small delay to ensure animation is visible
+      await new Promise(resolve => setTimeout(resolve, 100));
+      await addXP(xpChange, 'habit', habit.streak);
+
+      // Force UI updates
+      window.dispatchEvent(new CustomEvent('xp-updated', {
+        detail: { forceUpdate: true, timestamp: Date.now() }
+      }));
+
+      // Show success notification
+      displayNotification(`+${xpChange} XP for completing ${habit.name}!`);
+    } else if (xpChange < 0) {
+      // For uncompleting, trigger the animation first for better feedback
+      let x = window.innerWidth / 2;
+      let y = window.innerHeight / 2;
+
+      // Extract coordinates based on event type
+      if (event) {
+        if (event instanceof MouseEvent) {
+          x = event.clientX;
+          y = event.clientY;
+        } else if (event instanceof TouchEvent && event.touches.length > 0) {
+          x = event.touches[0].clientX;
+          y = event.touches[0].clientY;
+        }
+      }
+
+      triggerXPAnimation(Math.abs(xpChange), 'habit', x, y);
+
+      // Small delay for animation
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Handle uncompleting a habit
+      await removeXP(Math.abs(xpChange), `Uncompleted: ${habit.name}`);
+
+      // Force multiple UI update events to ensure reactivity across components
+      window.dispatchEvent(new CustomEvent('xp-updated', {
+        detail: { forceUpdate: true, timestamp: Date.now() }
+      }));
+
+      // Try another update after a bit more time for good measure
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('xp-updated-complete', {
+          detail: { timestamp: Date.now() }
+        }));
+      }, 200);
+
+      // Show notification
+      displayNotification(`-${Math.abs(xpChange)} XP from uncompleting ${habit.name}`);
+    }
+  } catch (error) {
+    console.error('❌ [HabitTracker] Error toggling habit:', error);
+    displayNotification('Error updating habit. Please try again.');
+  }
+};
+
+// Bottom navigation event handlers
+
+/**
+ * Handles the add habit button click from the BottomNavigation.
+ * Opens the add quest modal.
+ */
+const handleAddHabitFromNav = () => {
+  openAddModal();
+};
+
+/**
+ * Handles the show timer button click from the BottomNavigation.
+ * If habits exist, opens the timer modal with the first habit.
+ * Otherwise, shows a notification.
+ */
+const handleShowTimer = () => {
+  // If there are habits, select the first one for the timer
+  if (habits.value.length > 0) {
+    openTimerModal(habits.value[0]);
   } else {
-    displayNotification(t('notifications.breakCompleted', {
-      type: timerState.value.mode === 'shortBreak' ? t('timer.shortBreak') : t('timer.longBreak')
-    }));
+    displayNotification('Create a habit first to use the timer');
   }
+};
 
-  // Play completion sound
-  const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3');
-  audio.play();
+/**
+ * Handles the show stats button click from the BottomNavigation.
+ * Currently shows a placeholder notification.
+ */
+const handleShowStats = () => {
+  displayNotification('Stats feature coming soon!');
+};
+
+/**
+ * Handles the show login button click from the BottomNavigation.
+ * Opens the login modal.
+ */
+const handleShowLogin = () => {
+  openLoginModal();
+};
+
+/**
+ * Component initialization on mount.
+ * Loads player state and refreshes habits.
+ */
+onMounted(async () => {
+  try {
+    await loadPlayerState();
+    await refreshHabits();
+  } catch (error) {
+    console.error('❌ [HabitTracker] Error during initialization:', error);
+    displayNotification('Error loading data. Please refresh the page.');
+  }
 });
 </script>
 
 <template>
-  <div class="habit-tracker">
-    <BackgroundAnimation />
-    <!-- System window frame -->
-    <div class="system-window">
-      <div class="system-header">
-        <div class="system-title">{{ t('system.title') }}</div>
-        <div class="system-date">{{ new Date().toLocaleDateString(userLanguage) }}</div>
-      </div>
+  <div class="habit-tracker"
+       @touchstart="handleTouchStart"
+       @touchmove="handleTouchMove"
+       @touchend="handleTouchEnd">
 
-      <div class="system-content">
-        <!-- Level up animation -->
-        <div class="level-up-animation" v-if="showLevelUpAnimation">
-          <img src="../assets/level-up-effect.svg" alt="Level Up" />
-        </div>
+    <PullToRefresh
+      :is-refreshing="isRefreshing"
+      :pull-offset="pullOffset"
+      :threshold="refreshThreshold"
+    />
 
-        <!-- Notification -->
-        <div class="notification" v-if="notificationState.show">
-          <img src="../assets/notification-icon.svg" alt="Notification" class="notification-icon" />
-          <div class="notification-message">{{ notificationState.message }}</div>
-        </div>
+    <GameStatusBar />
 
-        <!-- Timer Modal -->
-        <div class="timer-modal" v-if="timerState.showTimer && timerState.selectedHabit">
-          <div class="timer-content">
-            <div class="timer-header">
-              <h3>{{ timerState.selectedHabit.name }}</h3>
-              <button class="close-button" @click="closeTimer">×</button>
-            </div>
+    <QuestList
+      :habits="habits"
+      @toggle="handleToggleHabit"
+      @remove="removeHabit"
+      @timer="openTimerModal"
+    />
 
-            <div class="timer-display" :class="{ 'timer-running': timerState.isRunning }">
-              {{ formattedTime }}
-            </div>
+    <TimerModal
+      v-if="showTimerModal && selectedHabit"
+      :habit="selectedHabit"
+      :is-running="timerState.isRunning"
+      :mode="timerState.mode"
+      :formatted-time="formattedTime"
+      :custom-minutes="timerState.customMinutes"
+      :swipe-offset="modalSwipeOffset"
+      @close="closeModals"
+      @start="startTimer"
+      @pause="pauseTimer"
+      @stop="resetTimer"
+      @set-mode="setTimerMode"
+      @set-custom-time="setTimer"
+      @touch-start="handleModalTouchStart"
+      @touch-move="handleModalTouchMove"
+      @touch-end="handleModalTouchEnd"
+    />
 
-            <div class="timer-modes">
-              <button
-                @click="setTimerMode('pomodoro')"
-                :class="{ active: timerState.mode === 'pomodoro' }"
-                class="mode-button"
-              >
-                {{ t('timer.pomodoro') }}
-              </button>
-              <button
-                @click="setTimerMode('shortBreak')"
-                :class="{ active: timerState.mode === 'shortBreak' }"
-                class="mode-button"
-              >
-                {{ t('timer.shortBreak') }}
-              </button>
-              <button
-                @click="setTimerMode('longBreak')"
-                :class="{ active: timerState.mode === 'longBreak' }"
-                class="mode-button"
-              >
-                {{ t('timer.longBreak') }}
-              </button>
-            </div>
+    <AddQuestModal
+      v-if="showAddModal"
+      :swipe-offset="modalSwipeOffset"
+      @close="closeModals"
+      @add="handleAddHabit"
+      @touch-start="handleModalTouchStart"
+      @touch-move="handleModalTouchMove"
+      @touch-end="handleModalTouchEnd"
+    />
 
-            <!-- Custom Time Input -->
-            <div class="custom-time">
-              <label for="customTime">{{ t('timer.customTime') }}</label>
-              <div class="custom-time-input">
-                <input
-                  type="number"
-                  id="customTime"
-                  :value="timerState.customMinutes"
-                  min="1"
-                  max="180"
-                  @change="(e: Event) => setCustomTime(parseInt((e.target as HTMLInputElement).value))"
-                  :disabled="timerState.isRunning"
-                />
-                <span class="minutes-label">{{ t('timer.minutes') }}</span>
-              </div>
-            </div>
-
-            <div class="timer-controls">
-              <button
-                @click="startTimer"
-                class="control-button start"
-                v-if="!timerState.isRunning"
-              >
-                {{ t('timer.start') }}
-              </button>
-              <button
-                @click="pauseTimer"
-                class="control-button pause"
-                v-else
-              >
-                {{ t('timer.pause') }}
-              </button>
-              <button
-                @click="stopTimer"
-                class="control-button stop"
-              >
-                {{ t('timer.reset') }}
-              </button>
-            </div>
-
-            <div class="timer-info" v-if="timerState.selectedHabit.timeSpent">
-              <div class="time-spent">
-                {{ t('timer.timeSpent') }}: {{ formatTimeSpent(timerState.selectedHabit.timeSpent) }}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="player-status">
-          <div class="player-rank">
-            <div class="rank-label">{{ t('player.rank') }}</div>
-            <div class="rank-value">{{ rank }}</div>
-          </div>
-
-          <div class="player-icon">
-            <img src="../assets/hunter-icon.svg" alt="Hunter Icon" />
-            <div class="level-badge">{{ level }}</div>
-          </div>
-
-          <div class="player-info">
-            <h2>{{ t('player.level') }} {{ level }}</h2>
-            <div class="xp-bar-container">
-              <div class="xp-bar" :style="{ width: xpPercentage + '%' }"></div>
-              <span class="xp-text">{{ xp }} / {{ xpToNextLevel }} {{ t('player.xp') }}</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="daily-quests">
-          <div class="quest-header">
-            <div class="rune-symbol left"></div>
-            <h3>{{ t('quests.title') }}</h3>
-            <div class="rune-symbol right"></div>
-          </div>
-
-          <ul class="habit-list">
-            <li v-for="habit in habits" :key="habit.id" class="habit-item">
-              <div class="habit-content">
-                <div class="habit-left">
-                  <input
-                    type="checkbox"
-                    :checked="habit.completed"
-                    @change="handleToggleHabit(habit)"
-                    class="habit-checkbox"
-                  />
-                  <span class="habit-name" :class="{ completed: habit.completed }">
-                    {{ habit.name }}
-                  </span>
-                </div>
-                <div class="habit-right">
-                  <span class="time-badge" v-if="habit.timeSpent" :title="t('quests.timeSpent')">
-                    {{ formatTimeSpent(habit.timeSpent) }}
-                  </span>
-                  <span class="streak-badge" v-if="habit.streak > 0">
-                    {{ habit.streak }} 🔥 {{ t('quests.streak') }}
-                  </span>
-                  <button class="timer-button" @click="selectHabitForTimer(habit)" :title="t('quests.startTimer')">
-                    <span class="timer-icon">⏱️</span>
-                  </button>
-                  <button class="delete-button" @click="handleDeleteHabit(habit.id)" :title="t('quests.removeQuest')">
-                    <span class="delete-icon">×</span>
-                  </button>
-                </div>
-              </div>
-            </li>
-          </ul>
-        </div>
-
-        <div class="add-habit">
-          <input
-            type="text"
-            v-model="newHabitName"
-            :placeholder="t('quests.addPlaceholder')"
-            @keyup.enter="handleAddHabit"
-          />
-          <button @click="handleAddHabit">
-            <span class="button-text">{{ t('quests.addButton') }}</span>
-          </button>
-        </div>
-
-      </div>
+    <div v-if="showLoginModal" class="auth-modal">
+      <Auth />
+      <button class="close-auth-btn" @click="closeModals">×</button>
     </div>
+
+    <BottomNavigation
+      @add-habit="handleAddHabitFromNav"
+      @show-timer="handleShowTimer"
+      @show-stats="handleShowStats"
+      @show-login="handleShowLogin"
+    />
+
   </div>
 </template>
 
 <style scoped>
 .habit-tracker {
-  max-width: 600px;
-  width: 100%;
+  position: relative;
+  max-width: 800px;
   margin: 0 auto;
-  padding: 0;
-  font-family: 'Arial', sans-serif;
-  position: relative;
+  padding: 10px 8px;
+  min-height: 100vh;
+  overflow-x: hidden;
+  font-family: 'Roboto', sans-serif;
+  touch-action: manipulation;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0));
+}
+
+.add-button {
+  position: fixed;
+  bottom: 80px;
+  right: 16px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6a5acd, #9370db);
+  border: none;
+  color: #fff;
+  font-size: 20px;
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow:
+    0 4px 12px rgba(106, 90, 205, 0.3),
+    0 0 0 1px rgba(106, 90, 205, 0.2);
+  transition: all 0.3s ease;
+  z-index: 100;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
-/* Add margin on mobile screens */
-@media (max-width: 768px) {
-  .habit-tracker {
-    margin: 0;
-    padding: 10px;
-  }
-
-  .system-content {
-    padding: 10px 0;
-  }
-
-  .player-status {
-    margin: 10px;
-    padding: 12px;
-  }
-
-  .player-info h2 {
-    font-size: 1.1rem;
-  }
-
-  .xp-text {
-    font-size: 0.8rem;
-  }
-
-  .daily-quests {
-    margin: 10px;
-    padding: 12px;
-  }
-
-  .habit-list {
-    margin: 0;
-    padding: 0;
-  }
-
-  .habit-item {
-    padding: 12px;
-    margin-bottom: 10px;
-  }
-
-  .habit-name {
-    font-size: 0.9rem;
-  }
-
-  .add-habit {
-    margin: 10px;
-  }
-
-  .add-habit input,
-  .add-habit button {
-    height: 44px;
-    font-size: 0.9rem;
-  }
-
-  .streak-badge,
-  .time-badge {
-    font-size: 0.7rem;
-    padding: 2px 4px;
-  }
-
-  .timer-button,
-  .delete-button {
-    width: 20px;
-    height: 20px;
-  }
-
-  .header {
-    margin-top: 50px;
-    margin-bottom: 30px;
-  }
+.add-button:hover,
+.add-button:active {
+  transform: translateY(-2px);
+  box-shadow:
+    0 6px 16px rgba(106, 90, 205, 0.4),
+    0 0 0 1px rgba(106, 90, 205, 0.3);
 }
 
-/* Add safe area insets for modern mobile devices */
-@supports (padding: max(0px)) {
-  .habit-tracker {
-    padding-left: max(10px, env(safe-area-inset-left));
-    padding-right: max(10px, env(safe-area-inset-right));
-    padding-bottom: max(10px, env(safe-area-inset-bottom));
-  }
+.add-button:active {
+  transform: translateY(0);
 }
 
-/* System window styling */
-.system-window {
-  background-color: rgba(26, 26, 42, 0.95);
-  border-radius: 10px;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5), 0 0 40px rgba(106, 90, 205, 0.2);
-  overflow: hidden;
-  position: relative;
-  border: 1px solid rgba(106, 90, 205, 0.5);
-  width: 100%;
+.add-icon {
+  line-height: 1;
 }
 
-@media (max-width: 768px) {
-  .system-window  {
-    padding: 30px;
-  }
+.habit-tracker > *:not(:first-child):not(.auth-modal) {
+  margin-bottom: 14px;
 }
-.system-window::before {
-  content: '';
-  position: absolute;
+
+.auth-modal {
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><path d="M15 5 L25 10 L25 20 L15 25 L5 20 L5 10 Z" fill="none" stroke="%236a5acd" stroke-width="0.5" opacity="0.1" /></svg>');
-  background-repeat: repeat;
-  opacity: 0.1;
-  z-index: 0;
-}
-
-.system-header {
-  background-color: #0a0a14;
-  padding: 15px 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid rgba(106, 90, 205, 0.5);
-  position: relative;
-  z-index: 1;
-}
-
-.system-title {
-  color: #ffffff;
-  font-weight: bold;
-  font-size: 1.2rem;
-  letter-spacing: 2px;
-  position: relative;
-}
-
-.system-title::before, .system-title::after {
-  content: '';
-  position: absolute;
-  height: 1px;
-  background-color: #6a5acd;
-  top: 50%;
-  width: 30px;
-}
-
-.system-title::before {
-  right: 100%;
-  margin-right: 10px;
-}
-
-.system-title::after {
-  left: 100%;
-  margin-left: 10px;
-}
-
-.system-date {
-  color: #9370db;
-  font-size: 0.9rem;
-}
-
-.system-content {
-  padding: 20px;
-  position: relative;
-  z-index: 1;
-  max-height: 70vh;
-  overflow-y: auto;
-}
-
-
-/* Notification styling */
-.notification {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background-color: rgba(26, 26, 42, 0.95);
-  border: 1px solid #6a5acd;
-  border-radius: 8px;
-  padding: 10px 15px;
-  display: flex;
-  align-items: center;
-  box-shadow: 0 0 15px rgba(106, 90, 205, 0.5);
-  z-index: 1000;
-  animation: slideIn 0.3s ease-out, fadeOut 0.5s ease-in 2.5s;
-}
-
-.notification-icon {
-  width: 24px;
-  height: 24px;
-  margin-right: 10px;
-}
-
-.notification-message {
-  color: #ffffff;
-  font-weight: bold;
-}
-
-@keyframes slideIn {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
-}
-
-@keyframes fadeOut {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
-
-/* Level up animation */
-.level-up-animation {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 100;
-  background-color: rgba(10, 10, 20, 0.7);
-  animation: fadeInOut 3s ease-in-out;
-}
-
-.level-up-animation img {
-  width: 300px;
-  height: 300px;
-  animation: pulse 1s infinite alternate;
-}
-
-@keyframes fadeInOut {
-  0% { opacity: 0; }
-  20% { opacity: 1; }
-  80% { opacity: 1; }
-  100% { opacity: 0; }
-}
-
-@keyframes pulse {
-  from { transform: scale(0.95); }
-  to { transform: scale(1.05); }
-}
-
-/* Player status styling */
-.player-status {
-  display: flex;
-  align-items: center;
-  margin-bottom: 20px;
-  background: linear-gradient(135deg, #2a2a3a 0%, #1a1a2a 100%);
-  border-radius: 10px;
-  padding: 15px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(106, 90, 205, 0.3);
-  position: relative;
-  overflow: hidden;
-}
-
-/* Add margin on mobile screens */
-@media (max-width: 768px) {
-  .player-status {
-    margin-left: 20px;
-    margin-right: 20px;
-  }
-}
-
-.player-status::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: radial-gradient(circle, rgba(106, 90, 205, 0.1) 0%, transparent 70%);
-  animation: rotate 10s linear infinite;
-  z-index: 0;
-}
-
-@keyframes rotate {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.player-rank {
+  background: rgba(10, 10, 20, 0.95);
+  backdrop-filter: blur(10px);
+  z-index: 2000;
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-right: 15px;
-  z-index: 1;
-}
-
-.rank-label {
-  font-size: 0.8rem;
-  color: #9370db;
-  margin-bottom: 5px;
-}
-
-.rank-value {
-  width: 35px;
-  height: 35px;
-  background-color: #1a1a2a;
-  border: 2px solid #6a5acd;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
   justify-content: center;
-  font-weight: bold;
-  font-size: 1.3rem;
-  color: #6a5acd;
-  box-shadow: 0 0 10px rgba(106, 90, 205, 0.5);
-}
-
-.player-icon {
-  width: 70px;
-  height: 70px;
-  position: relative;
-  margin-right: 15px;
-  z-index: 1;
-}
-
-.player-icon img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  filter: drop-shadow(0 0 5px rgba(106, 90, 205, 0.5));
-}
-
-.level-badge {
-  position: absolute;
-  bottom: -5px;
-  right: -5px;
-  background: #6a5acd;
-  color: white;
-  border-radius: 50%;
-  width: 25px;
-  height: 25px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  border: 2px solid white;
-  box-shadow: 0 0 10px rgba(106, 90, 205, 0.7);
-  font-size: 0.9rem;
-}
-
-.player-info {
-  flex: 1;
-  z-index: 1;
-}
-
-.player-info h2 {
-  margin: 0 0 8px;
-  color: #fff;
-  font-size: 1.3rem;
-  text-shadow: 0 0 5px rgba(106, 90, 205, 0.7);
-}
-
-.xp-bar-container {
-  height: 18px;
-  background-color: #2a2a3a;
-  border-radius: 10px;
-  overflow: hidden;
-  position: relative;
-  border: 1px solid #6a5acd;
-  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
-}
-
-.xp-bar {
-  height: 100%;
-  background: linear-gradient(90deg, #6a5acd, #9370db);
-  transition: width 0.5s ease-in-out;
-  position: relative;
-  overflow: hidden;
-}
-
-.xp-bar::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(90deg,
-    rgba(255, 255, 255, 0.1) 0%,
-    rgba(255, 255, 255, 0.2) 50%,
-    rgba(255, 255, 255, 0.1) 100%);
-  transform: skewX(-20deg);
-  animation: shimmer 2s infinite;
-}
-
-@keyframes shimmer {
-  from { transform: translateX(-100%) skewX(-20deg); }
-  to { transform: translateX(100%) skewX(-20deg); }
-}
-
-.xp-text {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: bold;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
-  font-size: 0.9rem;
-}
-
-/* Daily quests styling */
-.daily-quests {
-  background: linear-gradient(135deg, #2a2a3a 0%, #1a1a2a 100%);
-  border-radius: 10px;
-  padding: 15px;
-  margin-bottom: 15px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(106, 90, 205, 0.3);
-  position: relative;
-}
-
-@media (max-width: 768px) {
-  .daily-quests {
-    margin-left: 20px;
-    margin-right: 20px;
-  }
-}
-
-.daily-quests::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><path d="M15 5 L25 10 L25 20 L15 25 L5 20 L5 10 Z" fill="none" stroke="%236a5acd" stroke-width="0.5" opacity="0.1" /></svg>');
-  background-repeat: repeat;
-  opacity: 0.1;
-  z-index: 0;
-  border-radius: 10px;
-}
-
-.quest-header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 12px;
-  position: relative;
-  z-index: 1;
-}
-
-.quest-header h3 {
-  margin: 0;
-  color: #fff;
-  padding-bottom: 8px;
-  text-align: center;
-  position: relative;
-  text-shadow: 0 0 5px rgba(106, 90, 205, 0.7);
-  letter-spacing: 2px;
-  font-size: 1.1rem;
-}
-
-.quest-header h3::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, #6a5acd, transparent);
-}
-
-.rune-symbol {
-  width: 18px;
-  height: 18px;
-  position: relative;
-}
-
-.rune-symbol.left {
-  margin-right: 12px;
-}
-
-.rune-symbol.right {
-  margin-left: 12px;
-}
-
-.rune-symbol::before, .rune-symbol::after {
-  content: '';
-  position: absolute;
-  background-color: #6a5acd;
-}
-
-.rune-symbol.left::before {
-  width: 18px;
-  height: 3px;
-  top: 7.5px;
-  left: 0;
-}
-
-.rune-symbol.left::after {
-  width: 3px;
-  height: 18px;
-  top: 0;
-  left: 7.5px;
-}
-
-.rune-symbol.right::before {
-  width: 18px;
-  height: 3px;
-  top: 7.5px;
-  left: 0;
-}
-
-.rune-symbol.right::after {
-  width: 18px;
-  height: 3px;
-  top: 0;
-  left: 0;
-  transform: rotate(90deg);
-  transform-origin: 9px 9px;
-}
-
-.habit-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  position: relative;
-  z-index: 1;
-  max-height: 30vh;
+  padding: 16px;
   overflow-y: auto;
+  padding-top: max(16px, env(safe-area-inset-top, 0));
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0));
 }
 
-@media (max-width: 768px) {
-  .habit-list {
-    margin-left: 20px;
-    margin-right: 20px;
-  }
-}
-
-.habit-item {
-  margin-bottom: 8px;
-  padding: 10px 12px;
-  background-color: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  transition: all 0.3s ease;
-  border-left: 3px solid transparent;
-  position: relative;
-}
-
-.habit-item:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  transform: translateY(-2px);
-  border-left: 3px solid #6a5acd;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
-
-.habit-item::before {
-  content: '';
+.close-auth-btn {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  border-radius: 8px;
-  box-shadow: 0 0 5px rgba(106, 90, 205, 0.3);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.habit-item:hover::before {
-  opacity: 1;
-}
-
-.habit-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-}
-
-.habit-left {
-  display: flex;
-  align-items: center;
-  flex: 1;
-}
-
-.habit-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.habit-checkbox {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 18px;
-  height: 18px;
-  border-radius: 5px;
-  background-color: rgba(255, 255, 255, 0.1);
-  border: 2px solid #6a5acd;
-  position: relative;
-  cursor: pointer;
-  vertical-align: middle;
-  margin-right: 10px;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-}
-
-.habit-checkbox:hover {
-  background-color: rgba(106, 90, 205, 0.2);
-  box-shadow: 0 0 5px rgba(106, 90, 205, 0.5);
-}
-
-.habit-checkbox:checked {
-  background-color: #6a5acd;
-}
-
-.habit-checkbox:checked::after {
-  content: "✓";
-  position: absolute;
-  color: white;
-  font-size: 12px;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.habit-name {
-  color: #fff;
-  flex: 1;
-  word-break: break-word;
-  transition: all 0.3s ease;
-  font-size: 0.95rem;
-}
-
-.completed {
-  text-decoration: line-through;
-  color: #9370db;
-}
-
-.streak-badge {
-  background-color: rgba(255, 69, 0, 0.2);
-  color: #ff6347;
-  padding: 2px 6px;
-  border-radius: 10px;
-  font-size: 0.75rem;
-  font-weight: bold;
-  margin-left: 10px;
-  white-space: nowrap;
-  border: 1px solid rgba(255, 69, 0, 0.3);
-  box-shadow: 0 0 5px rgba(255, 69, 0, 0.3);
-  flex-shrink: 0;
-}
-
-/* Add habit form styling */
-.add-habit {
-  display: flex;
-  margin-top: 15px;
-  position: relative;
-  z-index: 1;
-}
-
-@media (max-width: 768px) {
-  .add-habit {
-    margin-left: 20px;
-    margin-right: 20px;
-  }
-}
-
-.add-habit input {
-  flex: 1;
-  padding: 10px 12px;
-  border: none;
-  border-radius: 8px 0 0 8px;
-  background-color: #2a2a3a;
-  color: white;
-  outline: none;
-  border: 1px solid rgba(106, 90, 205, 0.3);
-  border-right: none;
-  transition: all 0.3s ease;
-  font-size: 0.95rem;
-}
-
-.add-habit input:focus {
-  box-shadow: 0 0 0 2px rgba(106, 90, 205, 0.3);
-}
-
-.add-habit button {
-  padding: 10px 15px;
-  background: linear-gradient(90deg, #6a5acd, #9370db);
-  border: none;
-  border-radius: 0 8px 8px 0;
-  color: white;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  white-space: nowrap;
-  position: relative;
-  overflow: hidden;
-  font-size: 0.95rem;
-}
-
-.add-habit button::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg,
-    transparent,
-    rgba(255, 255, 255, 0.2),
-    transparent);
-  transition: all 0.5s ease;
-}
-
-.add-habit button:hover {
-  background: linear-gradient(90deg, #5a4abf, #8360cb);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
-
-.add-habit button:hover::before {
-  left: 100%;
-}
-
-.button-text {
-  position: relative;
-  z-index: 1;
-}
-
-
-/* Responsive styles */
-@media (max-width: 768px) {
-  .system-window {
-    background: none;
-    box-shadow: none;
-    border: none;
-    border-radius: 0;
-  }
-
-  .system-header {
-    display: none;
-  }
-
-  .system-content {
-    padding: 10px;
-    max-height: 100vh;
-  }
-
-  .habit-tracker {
-    margin-left: 0;
-    margin-right: 0;
-  }
-
-  .player-status {
-    margin-left: 20px;
-    margin-right: 20px;
-  }
-
-  .daily-quests {
-    margin-left: 20px;
-    margin-right: 20px;
-  }
-
-  .habit-list {
-    margin-left: 20px;
-    margin-right: 20px;
-  }
-
-  .add-habit {
-    margin-left: 20px;
-    margin-right: 20px;
-  }
-}
-
-/* For very small screens */
-@media (max-height: 600px) {
-  .system-content {
-    padding: 10px;
-    max-height: 80vh;
-  }
-
-  .player-status {
-    margin-bottom: 10px;
-    padding: 10px;
-  }
-
-  .daily-quests {
-    padding: 10px;
-    margin-bottom: 10px;
-  }
-
-  .habit-list {
-    max-height: 25vh;
-  }
-
-  .add-habit {
-    margin-top: 10px;
-  }
-}
-
-.delete-button {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background-color: rgba(255, 69, 0, 0.2);
-  border: 1px solid rgba(255, 69, 0, 0.3);
-  color: #ff6347;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  padding: 0;
-  opacity: 0.7;
-  flex-shrink: 0;
-}
-
-.delete-button:hover {
-  background-color: rgba(255, 69, 0, 0.4);
-  transform: scale(1.1);
-  opacity: 1;
-  box-shadow: 0 0 5px rgba(255, 69, 0, 0.5);
-}
-
-.delete-icon {
-  font-size: 16px;
-  font-weight: bold;
-  line-height: 1;
-}
-
-/* Timer Modal */
-.timer-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(10, 10, 20, 0.8);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  backdrop-filter: blur(5px);
-}
-
-.timer-content {
-  background: linear-gradient(135deg, #2a2a3a 0%, #1a1a2a 100%);
-  border-radius: 12px;
-  padding: 20px;
-  width: 90%;
-  max-width: 400px;
-  box-shadow: 0 0 30px rgba(106, 90, 205, 0.5);
-  border: 1px solid rgba(106, 90, 205, 0.5);
-  position: relative;
-  animation: fadeIn 0.3s ease-out;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.timer-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  border-bottom: 1px solid rgba(106, 90, 205, 0.3);
-  padding-bottom: 10px;
-}
-
-.timer-header h3 {
-  margin: 0;
-  color: #fff;
-  font-size: 1.2rem;
-  text-shadow: 0 0 5px rgba(106, 90, 205, 0.7);
-}
-
-.close-button {
+  top: max(16px, env(safe-area-inset-top, 10px));
+  right: 16px;
   background: none;
   border: none;
-  color: #9370db;
+  color: rgba(255, 255, 255, 0.7);
   font-size: 24px;
   cursor: pointer;
-  padding: 0;
-  line-height: 1;
-  transition: all 0.3s ease;
-}
-
-.close-button:hover {
-  color: #fff;
-  transform: scale(1.1);
-}
-
-.timer-display {
-  font-size: 3.5rem;
-  font-weight: bold;
-  text-align: center;
-  color: #fff;
-  margin: 20px 0;
-  text-shadow: 0 0 10px rgba(106, 90, 205, 0.7);
-  font-family: 'Courier New', monospace;
-  transition: all 0.3s ease;
-}
-
-.timer-running {
-  color: #6a5acd;
-  animation: pulse 1s infinite alternate;
-}
-
-.timer-modes {
+  width: 36px;
+  height: 36px;
   display: flex;
+  align-items: center;
   justify-content: center;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.mode-button {
-  background-color: rgba(106, 90, 205, 0.2);
-  border: 1px solid rgba(106, 90, 205, 0.3);
-  color: #9370db;
-  padding: 8px 12px;
-  border-radius: 20px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 0.9rem;
-}
-
-.mode-button:hover {
-  background-color: rgba(106, 90, 205, 0.3);
-  transform: translateY(-2px);
-}
-
-.mode-button.active {
-  background-color: rgba(106, 90, 205, 0.5);
-  color: white;
-  box-shadow: 0 0 10px rgba(106, 90, 205, 0.5);
-}
-
-.timer-controls {
-  display: flex;
-  justify-content: center;
-  gap: 15px;
-  margin-bottom: 20px;
-}
-
-.control-button {
-  padding: 10px 20px;
-  border-radius: 25px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border: none;
-  font-size: 1rem;
-  min-width: 100px;
-}
-
-.control-button.start {
-  background: linear-gradient(90deg, #4CAF50, #8BC34A);
-  color: white;
-}
-
-.control-button.pause {
-  background: linear-gradient(90deg, #FFC107, #FF9800);
-  color: white;
-}
-
-.control-button.stop {
-  background: rgba(255, 255, 255, 0.1);
-  color: #9370db;
-  border: 1px solid rgba(106, 90, 205, 0.3);
-}
-
-.control-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
-
-.timer-info {
-  text-align: center;
-  color: #9370db;
-  font-size: 0.9rem;
-  margin-top: 10px;
-}
-
-/* Timer button in habit list */
-.timer-button {
-  width: 22px;
-  height: 22px;
   border-radius: 50%;
-  background-color: rgba(106, 90, 205, 0.2);
-  border: 1px solid rgba(106, 90, 205, 0.3);
-  color: #6a5acd;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
   transition: all 0.3s ease;
-  padding: 0;
-  opacity: 0.7;
-  flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 2001;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
-.timer-button:hover {
-  background-color: rgba(106, 90, 205, 0.4);
-  transform: scale(1.1);
-  opacity: 1;
-  box-shadow: 0 0 5px rgba(106, 90, 205, 0.5);
-}
-
-.timer-icon {
-  font-size: 12px;
-  line-height: 1;
-}
-
-.time-badge {
-  background-color: rgba(106, 90, 205, 0.2);
-  color: #9370db;
-  padding: 2px 6px;
-  border-radius: 10px;
-  font-size: 0.75rem;
-  font-weight: bold;
-  white-space: nowrap;
-  border: 1px solid rgba(106, 90, 205, 0.3);
-  box-shadow: 0 0 5px rgba(106, 90, 205, 0.3);
-  flex-shrink: 0;
-}
-
-/* Responsive styles for timer */
-@media (max-width: 768px) {
-  .timer-modal {
-    align-items: flex-end;
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-  }
-
-  .timer-content {
-    width: 100%;
-    margin: 0;
-    border-radius: 20px 20px 0 0;
-    padding: 20px 15px;
-    max-height: 80vh;
-    overflow-y: auto;
-  }
-
-  .timer-display {
-    font-size: 3rem;
-    margin: 15px 0;
-  }
-
-  .timer-modes {
-    gap: 8px;
-  }
-
-  .mode-button {
-    flex: 1;
-    min-width: 0;
-    padding: 10px 8px;
-    font-size: 0.85rem;
-    white-space: nowrap;
-  }
-
-  .timer-controls {
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-
-  .control-button {
-    flex: 1;
-    min-width: 120px;
-    padding: 12px;
-    font-size: 0.95rem;
-  }
-}
-
-@media (max-width: 768px) {
-  .notification {
-    top: auto;
-    bottom: max(20px, env(safe-area-inset-bottom));
-    left: 50%;
-    transform: translateX(-50%);
-    width: calc(100% - 40px);
-    max-width: 400px;
-    padding: 12px 16px;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    z-index: 2000;
-  }
-
-  .notification-message {
-    font-size: 0.9rem;
-  }
-
-  @keyframes slideIn {
-    from { transform: translate(-50%, 100%); opacity: 0; }
-    to { transform: translate(-50%, 0); opacity: 1; }
-  }
-
-  @keyframes fadeOut {
-    from { opacity: 1; transform: translate(-50%, 0); }
-    to { opacity: 0; transform: translate(-50%, 100%); }
-  }
-}
-
-/* Custom Time Input Styles */
-.custom-time {
-  margin: 20px 0;
-  text-align: center;
-}
-
-.custom-time label {
-  display: block;
-  color: #9370db;
-  margin-bottom: 8px;
-  font-size: 0.9rem;
-}
-
-.custom-time-input {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.custom-time-input input {
-  background: rgba(106, 90, 205, 0.1);
-  border: 1px solid rgba(106, 90, 205, 0.3);
+.close-auth-btn:hover,
+.close-auth-btn:active {
   color: #fff;
-  padding: 8px;
-  border-radius: 8px;
-  width: 80px;
-  text-align: center;
-  font-size: 1rem;
+  background: rgba(0, 0, 0, 0.5);
 }
 
-.custom-time-input input:focus {
-  outline: none;
-  border-color: #6a5acd;
-  box-shadow: 0 0 0 2px rgba(106, 90, 205, 0.2);
+@media (min-width: 768px) {
+  .habit-tracker {
+    padding: 16px;
+    padding-bottom: 100px;
+    width: 90%;
+    max-width: 600px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .habit-tracker > * {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .add-button {
+    bottom: 80px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    font-size: 24px;
+  }
+
+  .auth-modal {
+    padding: 20px;
+  }
+
+  .close-auth-btn {
+    top: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+  }
+
+  .habit-tracker > *:not(:first-child):not(.auth-modal) {
+    margin-bottom: 20px;
+  }
 }
 
-.custom-time-input input:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+@media (min-width: 1200px) {
+  .habit-tracker {
+    max-width: 700px;
+  }
 }
 
-.minutes-label {
-  color: #9370db;
-  font-size: 0.9rem;
+/* Apply Roboto font to all elements */
+:root {
+  font-family: 'Roboto', 'Courier New', monospace;
 }
 </style>

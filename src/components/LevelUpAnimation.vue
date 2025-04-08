@@ -1,4 +1,17 @@
 <script setup lang="ts">
+/**
+ * LevelUpAnimation.vue
+ *
+ * Level-up celebration animation.
+ * Displays a celebratory animation when the player levels up,
+ * featuring a full-screen overlay animation with pulsing effect
+ * for visual impact and automatic fade in/out.
+ */
+
+/**
+ * Component Props
+ * @property {boolean} show - Controls the visibility of the animation
+ */
 defineProps<{
   show: boolean;
 }>();

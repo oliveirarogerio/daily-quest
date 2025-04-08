@@ -1,14 +1,30 @@
 <script setup lang="ts">
+/**
+ * BackgroundAnimation.vue
+ *
+ * Three.js-powered background particle animation.
+ * Creates an immersive background effect with animated particles,
+ * responsive to window size changes, with subtle animated wave patterns.
+ * Optimized for performance with hardware acceleration.
+ */
 import { onMounted, onBeforeUnmount, ref } from 'vue';
 import * as THREE from 'three';
 
+// DOM reference for the Three.js container
 const containerRef = ref<HTMLDivElement | null>(null);
+
+// Three.js objects
 let scene: THREE.Scene;
 let camera: THREE.PerspectiveCamera;
 let renderer: THREE.WebGLRenderer;
 let particles: THREE.Points;
 let animationFrameId: number;
 
+/**
+ * Initializes the Three.js scene, camera, renderer, and particles.
+ * Sets up the particle system with the theme color and attaches
+ * event listeners for window resizing.
+ */
 const initThree = () => {
   if (!containerRef.value) return;
 
@@ -52,7 +68,10 @@ const initThree = () => {
 
   camera.position.z = 3;
 
-  // Handle window resize
+  /**
+   * Handles window resize events by updating the camera aspect ratio
+   * and renderer size to maintain responsive behavior
+   */
   const handleResize = () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
@@ -61,7 +80,10 @@ const initThree = () => {
 
   window.addEventListener('resize', handleResize);
 
-  // Animation loop
+  /**
+   * Animation loop for continuous rendering of the particle system.
+   * Adds subtle rotation and wave motion to particles for a dynamic effect.
+   */
   const animate = () => {
     animationFrameId = requestAnimationFrame(animate);
 
@@ -100,6 +122,9 @@ const initThree = () => {
   });
 };
 
+/**
+ * Initialize the Three.js scene when the component is mounted
+ */
 onMounted(() => {
   initThree();
 });
