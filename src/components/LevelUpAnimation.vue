@@ -7,6 +7,7 @@
  * featuring a full-screen overlay animation with pulsing effect
  * for visual impact and automatic fade in/out.
  */
+import { useI18n } from '../composables/useI18n';
 
 /**
  * Component Props
@@ -15,11 +16,13 @@
 defineProps<{
   show: boolean;
 }>();
+
+const { t } = useI18n();
 </script>
 
 <template>
   <div class="level-up-animation" v-if="show">
-    <img src="../assets/level-up-effect.svg" alt="Level Up" />
+    <img src="../assets/level-up-effect.svg" :alt="t('levelUp.altText')" />
   </div>
 </template>
 
