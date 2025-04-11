@@ -43,6 +43,7 @@ export const translations = {
     },
     quests: {
       title: 'DAILY QUESTS',
+      addTitle: 'Add New Quest',
       addPlaceholder: 'Add new quest...',
       addButton: 'Add Quest',
       timeSpent: 'Time spent',
@@ -58,8 +59,19 @@ export const translations = {
       pause: 'Pause',
       reset: 'Reset',
       timeSpent: 'Time spent',
-      customTime: 'Custom Time',
+      custom: 'Custom Time',
       minutes: 'minutes',
+      seconds: 'seconds',
+      pomodoroDescription: 'Focus on your task for 25 minutes',
+      shortBreakDescription: 'Take a 5-minute break',
+      longBreakDescription: 'Take a 15-minute break',
+      customDescription: 'Set your own timer duration',
+      close: 'Close timer',
+      autoStart: 'Auto-start next timer',
+      sessions: 'Sessions',
+      currentSession: 'Current Session',
+      nextBreak: 'Next Break',
+      complete: 'Complete',
     },
     notifications: {
       newQuest: 'New Quest Added!',
@@ -94,6 +106,17 @@ export const translations = {
     },
     footer: {
       madeBy: 'Made by Rogério Oliveira',
+    },
+    actions: {
+      refreshing: 'Refreshing...',
+      pullToRefresh: 'Pull to refresh',
+    },
+    levelUp: {
+      altText: 'Level Up',
+    },
+    app: {
+      title: 'DAILY QUEST',
+      subtitle: 'Level up your life, one quest at a time',
     },
   },
   pt: {
@@ -136,6 +159,7 @@ export const translations = {
     },
     quests: {
       title: 'MISSÕES DIÁRIAS',
+      addTitle: 'Adicionar Nova Missão',
       addPlaceholder: 'Adicionar nova missão...',
       addButton: 'Adicionar Missão',
       timeSpent: 'Tempo gasto',
@@ -151,8 +175,19 @@ export const translations = {
       pause: 'Pausar',
       reset: 'Reiniciar',
       timeSpent: 'Tempo gasto',
-      customTime: 'Tempo Personalizado',
+      custom: 'Tempo Personalizado',
       minutes: 'minutos',
+      seconds: 'segundos',
+      pomodoroDescription: 'Foque na sua tarefa por 25 minutos',
+      shortBreakDescription: 'Faça uma pausa de 5 minutos',
+      longBreakDescription: 'Faça uma pausa de 15 minutos',
+      customDescription: 'Defina sua própria duração',
+      close: 'Fechar timer',
+      autoStart: 'Iniciar próximo timer automaticamente',
+      sessions: 'Sessões',
+      currentSession: 'Sessão Atual',
+      nextBreak: 'Próxima Pausa',
+      complete: 'Concluir',
     },
     notifications: {
       newQuest: 'Nova Missão Adicionada!',
@@ -187,6 +222,17 @@ export const translations = {
     },
     footer: {
       madeBy: 'Feito por Rogério Oliveira',
+    },
+    actions: {
+      refreshing: 'Atualizando...',
+      pullToRefresh: 'Puxe para atualizar',
+    },
+    levelUp: {
+      altText: 'Subiu de Nível',
+    },
+    app: {
+      title: 'MISSÃO DIÁRIA',
+      subtitle: 'Evolua sua vida, uma missão por vez',
     },
   },
 }
