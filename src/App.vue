@@ -5,9 +5,11 @@ import Notification from './components/Notification.vue'
 import LevelUpAnimation from './components/LevelUpAnimation.vue'
 import { usePlayer } from './composables/usePlayer'
 import { useNotification } from './composables/useNotification'
+import { useI18n } from './composables/useI18n'
 
 const { showLevelUpAnimation } = usePlayer()
 const { state: notificationState } = useNotification()
+const { t } = useI18n()
 </script>
 
 <template>
@@ -17,9 +19,9 @@ const { state: notificationState } = useNotification()
     <div class="content">
       <div class="header rpg-window">
         <div class="rpg-window-header">
-          <h1>DAILY QUEST</h1>
+          <h1>{{ t('app.title') }}</h1>
         </div>
-        <p class="subtitle">Level up your life, one quest at a time</p>
+        <p class="subtitle">{{ t('app.subtitle') }}</p>
       </div>
 
       <BackgroundAnimation />
