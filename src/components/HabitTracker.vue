@@ -129,10 +129,7 @@ const handleModalTouchMove = (event: TouchEvent) => {
   }
 };
 
-/**
- * Handles touch end events on modals for swipe-to-dismiss gesture.
- * Closes the modal if swipe distance exceeds threshold.
- */
+
 const handleModalTouchEnd = () => {
   if (modalSwipeOffset.value > 100) {
     closeModals();
@@ -526,8 +523,8 @@ onMounted(async () => {
 @media (min-width: 768px) {
   .habit-tracker {
     padding-bottom: 100px;
-    width: 90%; 
-    max-width: 600px; 
+    width: 90%;
+    max-width: 600px;
     display: flex;
     flex-direction: column;
     align-items: center;
