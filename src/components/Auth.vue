@@ -53,6 +53,7 @@ const handleAuth = async () => {
       return
     }
 
+
     // Select appropriate auth function based on mode
     const authFunction = isRegistering.value
       ? createUserWithEmailAndPassword
@@ -93,10 +94,7 @@ async function createPlayer(result: any) {
   })
 }
 
-/**
- * Handles Google Sign-In authentication.
- * Uses Firebase popup authentication flow with Google provider.
- */
+
 const handleGoogleSignIn = async () => {
   try {
     isLoading.value = true
