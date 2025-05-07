@@ -54,7 +54,6 @@ const initThree = () => {
 
   particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
 
-  // Create material with custom color matching your theme
   const particlesMaterial = new THREE.PointsMaterial({
     size: 0.005,
     color: 0x6a5acd, // Matches your theme color
