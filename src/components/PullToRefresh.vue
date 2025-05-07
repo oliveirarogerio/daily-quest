@@ -1,12 +1,5 @@
 <script setup lang="ts">
-/**
- * PullToRefresh.vue
- *
- * Pull-to-refresh gesture handler for mobile UX.
- * Provides visual feedback for pull-to-refresh functionality,
- * including animated pull indicator with progress visualization
- * and threshold-based activation.
- */
+
 import { ref, computed } from 'vue';
 import { useI18n } from '../composables/useI18n';
 

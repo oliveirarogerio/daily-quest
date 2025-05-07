@@ -10,10 +10,7 @@ import { ref } from 'vue';
 import { useI18n } from '../composables/useI18n';
 import type { Habit } from '../types/habit';
 
-/**
- * Component Props
- * @property {Habit[]} habits - Array of Habit objects to display
- */
+
 const props = defineProps<{
   habits: Habit[];
 }>();

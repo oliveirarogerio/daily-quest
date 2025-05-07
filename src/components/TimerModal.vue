@@ -29,7 +29,6 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 
-// Progress state management
 const progress = ref(0);
 const totalDuration = ref(0); // Total duration in seconds
 const initialTime = ref(0); // Initial time in seconds
