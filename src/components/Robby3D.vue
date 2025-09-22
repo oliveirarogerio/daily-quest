@@ -212,9 +212,9 @@ const loadModel = async () => {
     const loader = new GLTFLoader()
 
     loader.load(
-      '/src/assets/cute+robot+3d+model.glb',
+      '/cute+robot+3d+model.glb',
       (gltf) => {
-        ;('GLB model loaded successfully')
+        console.log('GLB model loaded successfully')
 
         // Clean up previous model
         if (robot.value && scene.value) {
@@ -253,7 +253,7 @@ const loadModel = async () => {
         animate()
       },
       (progress) => {
-        ;('Loading progress:', (progress.loaded / progress.total) * 100 + '%')
+        console.log('Loading progress:', (progress.loaded / progress.total) * 100 + '%')
       },
       (error) => {
         console.error('Failed to load GLB model:', error)

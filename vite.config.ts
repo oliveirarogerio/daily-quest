@@ -43,6 +43,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globIgnores: ['**/*.{glb,gltf}'],
         navigateFallbackDenylist: [
           /^\/__/,
           /chrome-extension:/,
@@ -94,20 +95,25 @@ export default defineConfig({
               },
             },
           },
+          {
+            urlPattern: /\.(glb|gltf)$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: '3d-models-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
         ],
       },
       injectRegister: 'auto',
       strategies: 'generateSW',
       includeManifestIcons: true,
-      manifestTransforms: [
-        (manifest) => {
-          manifest.screenshots = []
-          // Add both mobile-web-app-capable and apple-mobile-web-app-capable
-          manifest.mobile_web_app_capable = 'yes'
-          manifest.apple_mobile_web_app_capable = 'yes'
-          return { manifest }
-        },
-      ],
     }),
   ],
 
