@@ -9,13 +9,13 @@
  * - Persistence to localStorage and Firebase
  * - Visual feedback (animations, notifications)
  */
-import { ref, computed, watch, reactive, nextTick } from 'vue'
+import { Timestamp, arrayUnion, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useCurrentUser } from 'vuefire'
-import { doc, setDoc, getDoc, updateDoc, Timestamp, arrayUnion } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import type { PlayerState, Rank } from '../types/habit'
 import { useFirebaseError } from './useFirebaseError'
 import { useNotification } from './useNotification'
-import type { PlayerState, Rank } from '../types/habit'
 
 export function usePlayer() {
   const user = useCurrentUser()
@@ -207,7 +207,7 @@ export function usePlayer() {
     y: number = 0,
   ) => {
     return await wrapFirebaseOperation(async () => {
-      console.log('🔍 [usePlayer] addXP called with:', { amount, source, streak, x, y })
+      ;('🔍 [usePlayer] addXP called with:', { amount, source, streak, x, y })
 
       // Apply multipliers
       const multiplier = calculateXPMultiplier(streak)
@@ -234,11 +234,13 @@ export function usePlayer() {
 
       // Update XP and check for level up
       const oldRank = rank.value
-      console.log('🔍 [usePlayer] Before XP update:', { currentXP: xp.value, toAdd: finalAmount })
+      console.log('🔍 [usePlayer] Before XP update:', {
+        currentXP: xp.value,
+        toAdd: finalAmount,
+      })
 
       // Ensure reactivity by using explicit assignment
       xp.value = Number(xp.value) + Number(finalAmount)
-
       console.log('🔍 [usePlayer] After XP update:', { newXP: xp.value })
 
       // Force update computed properties
@@ -298,21 +300,25 @@ export function usePlayer() {
 
   const removeXP = async (amount: number, source: string = 'penalty') => {
     return await wrapFirebaseOperation(async () => {
-      console.log('🔍 [usePlayer] removeXP called with:', { amount, source })
+      ;('🔍 [usePlayer] removeXP called with:', { amount, source })
 
       // Record history with negative amount
-
       recentXPGain.value = -amount
       console.log('🔍 [usePlayer] Updated recentXPGain to:', recentXPGain.value)
 
       // Update XP (cannot go below 0)
-      console.log('🔍 [usePlayer] Before XP reduction:', { currentXP: xp.value, toRemove: amount })
+      console.log('🔍 [usePlayer] Before XP reduction:', {
+        currentXP: xp.value,
+        toRemove: amount,
+      })
       xp.value = Math.max(0, xp.value - amount)
-      console.log('🔍 [usePlayer] After XP reduction:', { newXP: xp.value })
+      console.log('🔍 [usePlayer] After XP reduction:', {
+        newXP: xp.value,
+      })
 
       // Dispatch a custom DOM event to force UI updates
       try {
-        console.log('🔥 [usePlayer] Dispatching xp-updated event (removal)')
+        ;('🔥 [usePlayer] Dispatching xp-updated event (removal)')
         window.dispatchEvent(
           new CustomEvent('xp-updated', {
             detail: { xp: xp.value, xpPercentage: xpPercentage.value },
@@ -329,7 +335,7 @@ export function usePlayer() {
       // Dispatch another event after all async operations
       try {
         setTimeout(() => {
-          console.log('🔥 [usePlayer] Dispatching xp-updated-complete event (removal)')
+          ;('🔥 [usePlayer] Dispatching xp-updated-complete event (removal)')
           window.dispatchEvent(new CustomEvent('xp-updated-complete', { detail: null }))
         }, 100)
       } catch (error) {
@@ -343,9 +349,7 @@ export function usePlayer() {
   const checkLevelUp = async () => {
     return await wrapFirebaseOperation(async () => {
       let leveledUp = false
-      let levelsGained = 0
-
-      console.log('🔍 [usePlayer] Checking level up:', {
+      let levelsGained = 0('🔍 [usePlayer] Checking level up:', {
         currentXP: xp.value,
         neededXP: xpToNextLevel.value,
         currentLevel: level.value,
@@ -356,12 +360,12 @@ export function usePlayer() {
         level.value++
         leveledUp = true
         levelsGained++
-
-        console.log('🔍 [usePlayer] Level up!', {
-          newLevel: level.value,
-          remainingXP: xp.value,
-          nextLevelXP: xpToNextLevel.value,
-        })
+        ;('🔍 [usePlayer] Level up!',
+          {
+            newLevel: level.value,
+            remainingXP: xp.value,
+            nextLevelXP: xpToNextLevel.value,
+          })
       }
 
       if (leveledUp) {
@@ -503,7 +507,7 @@ export function usePlayer() {
    */
   const trackHabitCompletion = async (habitData: { streak: number; id: string }) => {
     return await wrapFirebaseOperation(async () => {
-      console.log('🔍 [usePlayer] trackHabitCompletion called with:', habitData)
+      ;('🔍 [usePlayer] trackHabitCompletion called with:', habitData)
 
       // Update longest streak if needed
       if (habitData.streak > longestStreak.value) {
@@ -572,7 +576,7 @@ export function usePlayer() {
    */
   const trackTimeSpent = async (minutes: number, habitId: string) => {
     return await wrapFirebaseOperation(async () => {
-      console.log('🔍 [usePlayer] trackTimeSpent called with:', { minutes, habitId })
+      ;('🔍 [usePlayer] trackTimeSpent called with:', { minutes, habitId })
 
       // If user is logged in, update their time tracking stats
       if (user.value) {
@@ -640,7 +644,7 @@ export function usePlayer() {
     x: number = window.innerWidth / 2,
     y: number = window.innerHeight / 2,
   ) => {
-    console.log('🔍 [usePlayer] Triggering XP animation:', { amount, source, x, y })
+    ;('🔍 [usePlayer] Triggering XP animation:', { amount, source, x, y })
 
     // Set recentXPGain to trigger animation in GameStatusBar
     recentXPGain.value = amount

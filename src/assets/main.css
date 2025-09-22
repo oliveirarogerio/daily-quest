@@ -1,22 +1,272 @@
-@import './base.css';
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+@import 'tailwindcss';
+
+/* Debug: Force apply Minecraft font */
+.font-minecraft {
+  font-family: 'Press Start 2P', monospace !important;
+}
 
 #app {
   margin: 0 auto;
   font-weight: normal;
 }
 
-a,
-.green {
-  text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
-  padding: 3px;
+/* Tiimo-inspired calming design */
+.theme-calm {
+  --primary: #60a5fa;
+  --secondary: #94a3b8;
+  --success: #34d399;
+  --danger: #f87171;
+  --warning: #fbbf24;
+  --bg-calm: #f8fafc;
+  --surface-light: #ffffff;
+  --text-main: #334155;
+  --text-secondary: #64748b;
+  --accent-blue: #dbeafe;
+  --accent-green: #dcfce7;
+  --accent-purple: #ede9fe;
 }
 
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
+.theme-dark {
+  --primary: #60a5fa;
+  --secondary: #64748b;
+  --success: #34d399;
+  --danger: #f87171;
+  --warning: #fbbf24;
+  --bg-calm: #0f172a;
+  --surface-light: #1e293b;
+  --text-main: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --accent-blue: #1e3a8a;
+  --accent-green: #14532d;
+  --accent-purple: #581c87;
+}
+
+/* Disable animations for users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
+/* Disable animations when user preference is set */
+.no-animations *,
+.no-animations *::before,
+.no-animations *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
 
+/* Theme-specific styles */
+.theme-calm {
+  --primary: #60a5fa;
+  --secondary: #94a3b8;
+  --success: #34d399;
+  --danger: #f87171;
+  --warning: #fbbf24;
+  --bg-calm: #f8fafc;
+  --surface-light: #ffffff;
+  --text-main: #334155;
+  --text-secondary: #64748b;
+  --accent-blue: #dbeafe;
+  --accent-green: #dcfce7;
+  --accent-purple: #ede9fe;
+}
+
+.theme-dark {
+  --primary: #60a5fa;
+  --secondary: #64748b;
+  --success: #34d399;
+  --danger: #f87171;
+  --warning: #fbbf24;
+  --bg-calm: #0f172a;
+  --surface-light: #1e293b;
+  --text-main: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --accent-blue: #1e3a8a;
+  --accent-green: #14532d;
+  --accent-purple: #581c87;
+}
+
+/* Apply theme variables to Tailwind classes */
+.bg-bg-calm {
+  background-color: var(--bg-calm);
+}
+
+.bg-surface-light {
+  background-color: var(--surface-light);
+}
+
+.text-text-main {
+  color: var(--text-main);
+}
+
+.text-text-secondary {
+  color: var(--text-secondary);
+}
+
+.bg-primary {
+  background-color: var(--primary);
+}
+
+.text-primary {
+  color: var(--primary);
+}
+
+.bg-secondary {
+  background-color: var(--secondary);
+}
+
+.text-secondary {
+  color: var(--secondary);
+}
+
+.bg-success {
+  background-color: var(--success);
+}
+
+.text-success {
+  color: var(--success);
+}
+
+.bg-danger {
+  background-color: var(--danger);
+}
+
+.text-danger {
+  color: var(--danger);
+}
+
+/* Tiimo-inspired animations and effects */
+@keyframes gentle-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes soft-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes slide-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in-scale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Tiimo-style components */
+.tiimo-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 16px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tiimo-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.tiimo-button {
+  border-radius: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.tiimo-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.tiimo-checkbox {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tiimo-checkbox:hover {
+  border-color: #34d399;
+  background-color: rgba(52, 211, 153, 0.1);
+}
+
+.tiimo-checkbox.checked {
+  background-color: #34d399;
+  border-color: #34d399;
+  animation: gentle-bounce 0.3s ease;
+}
+
+/* Smooth page transitions */
+.page-enter-active,
+.page-leave-active {
+  transition: all 0.3s ease;
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

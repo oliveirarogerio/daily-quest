@@ -9,22 +9,22 @@
  * - Calculating XP rewards for habit completion
  * - Integrating with player progression system
  */
-import { ref, watch } from 'vue'
-import { useCurrentUser } from 'vuefire'
 import {
   addDoc,
   deleteDoc,
   doc,
-  updateDoc,
+  getDoc,
   getDocs,
   query,
+  updateDoc,
   where,
-  getDoc,
 } from 'firebase/firestore'
+import { ref, watch } from 'vue'
+import { useCurrentUser } from 'vuefire'
 import { db, habitsRef } from '../firebase/config'
+import type { Habit } from '../types/habit'
 import { useFirebaseError } from './useFirebaseError'
 import { useNotification } from './useNotification'
-import type { Habit } from '../types/habit'
 import { usePlayer } from './usePlayer'
 
 export function useHabits() {
@@ -117,7 +117,7 @@ export function useHabits() {
             // Update with Firebase ID
             const updatedHabit = { ...habit, id: newDocRef.id, userId }
             mergedHabits.set(newDocRef.id, updatedHabit)
-            displayNotification('Local habit synced to cloud')
+            displayNotification('Missão local sincronizada com a nuvem')
           } catch (error) {
             console.error('Error syncing local habit:', error)
             mergedHabits.set(habit.id, habit)
@@ -184,7 +184,7 @@ export function useHabits() {
             userId: user.value.uid, // Ensure correct user ID
           })
           habitId = docRef.id
-          displayNotification('Habit created successfully')
+          displayNotification('Missão criada com sucesso')
         } catch (error) {
           console.error('Error creating habit in Firebase:', error)
           // Use local ID as fallback
@@ -276,7 +276,7 @@ export function useHabits() {
             habits.value.push(updatedHabit)
             saveToStorage() // Ensure immediate save to storage
 
-            displayNotification('Habit synced to cloud')
+            displayNotification('Missão sincronizada com a nuvem')
             return
           }
 
@@ -471,7 +471,7 @@ export function useHabits() {
         return wasCompleted ? -habit.lastEarnedXP! : earnedXP + bonusXP
       } catch (error) {
         console.error('Error toggling habit completion:', error)
-        displayNotification('Failed to update habit completion status')
+        displayNotification('Falha ao atualizar status da missão')
         return 0 // Return 0 XP on error
       }
     }, 'toggleHabitCompletion')

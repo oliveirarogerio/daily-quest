@@ -9,7 +9,6 @@
 import { ref } from 'vue'
 import { FirebaseError } from 'firebase/app'
 import { useNotification } from './useNotification'
-import { useI18n } from './useI18n'
 
 /**
  * Interface defining the structure of error state information
@@ -27,7 +26,6 @@ interface ErrorState {
 
 export function useFirebaseError() {
   const { displayNotification } = useNotification()
-  const { t } = useI18n()
   const lastError = ref<ErrorState | null>(null)
   const isLoading = ref(false)
 
@@ -96,29 +94,29 @@ export function useFirebaseError() {
   const getErrorMessage = (code: string, context: string): string => {
     // Common Firebase error codes
     const errorMessages: Record<string, string> = {
-      'auth/invalid-email': t('errors.invalidEmail'),
-      'auth/user-disabled': t('errors.userDisabled'),
-      'auth/user-not-found': t('errors.userNotFound'),
-      'auth/wrong-password': t('errors.wrongPassword'),
-      'auth/email-already-in-use': t('errors.emailInUse'),
-      'auth/weak-password': t('errors.weakPassword'),
-      'auth/operation-not-allowed': t('errors.operationNotAllowed'),
-      'auth/popup-closed-by-user': t('errors.popupClosed'),
-      'permission-denied': t('errors.permissionDenied'),
-      'not-found': t('errors.notFound'),
-      'already-exists': t('errors.alreadyExists'),
-      cancelled: t('errors.cancelled'),
-      'data-loss': t('errors.dataLoss'),
-      'deadline-exceeded': t('errors.deadlineExceeded'),
-      'failed-precondition': t('errors.failedPrecondition'),
-      internal: t('errors.internal'),
-      'invalid-argument': t('errors.invalidArgument'),
-      'out-of-range': t('errors.outOfRange'),
-      'resource-exhausted': t('errors.resourceExhausted'),
-      unauthenticated: t('errors.unauthenticated'),
-      unavailable: t('errors.unavailable'),
-      unimplemented: t('errors.unimplemented'),
-      unknown: t('errors.unknown'),
+      'auth/invalid-email': 'Email inválido',
+      'auth/user-disabled': 'Usuário desabilitado',
+      'auth/user-not-found': 'Usuário não encontrado',
+      'auth/wrong-password': 'Senha incorreta',
+      'auth/email-already-in-use': 'Email já está em uso',
+      'auth/weak-password': 'Senha muito fraca',
+      'auth/operation-not-allowed': 'Operação não permitida',
+      'auth/popup-closed-by-user': 'Popup fechado pelo usuário',
+      'permission-denied': 'Permissão negada',
+      'not-found': 'Não encontrado',
+      'already-exists': 'Já existe',
+      cancelled: 'Cancelado',
+      'data-loss': 'Perda de dados',
+      'deadline-exceeded': 'Prazo excedido',
+      'failed-precondition': 'Pré-condição falhou',
+      internal: 'Erro interno',
+      'invalid-argument': 'Argumento inválido',
+      'out-of-range': 'Fora do intervalo',
+      'resource-exhausted': 'Recurso esgotado',
+      unauthenticated: 'Não autenticado',
+      unavailable: 'Indisponível',
+      unimplemented: 'Não implementado',
+      unknown: 'Erro desconhecido',
     }
 
     return errorMessages[code] || t('errors.unknown', { context })

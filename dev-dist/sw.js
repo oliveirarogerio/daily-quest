@@ -67,7 +67,7 @@ if (!self.define) {
     });
   };
 }
-define(['./workbox-61473718'], (function (workbox) { 'use strict';
+define(['./workbox-5d7ad1f3'], (function (workbox) { 'use strict';
 
   self.skipWaiting();
   workbox.clientsClaim();
@@ -82,12 +82,18 @@ define(['./workbox-61473718'], (function (workbox) { 'use strict';
     "revision": "3ca0b8505b4bec776b69afdba2768812"
   }, {
     "url": "index.html",
-    "revision": "0.bn26ucvrdi"
+    "revision": "0.6g4tab0sre8"
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("index.html"), {
-    allowlist: [/^\/$/]
+    allowlist: [/^\/$/],
+    denylist: [/^\/__/, /chrome-extension:/, /moz-extension:/, /safari-extension:/]
   }));
+  workbox.registerRoute(({
+    url
+  }) => {
+    return url.protocol === "chrome-extension:" || url.protocol === "moz-extension:" || url.protocol === "safari-extension:" || url.href.includes("chrome-extension://") || url.href.includes("moz-extension://") || url.href.includes("safari-extension://");
+  }, new workbox.NetworkOnly(), 'GET');
   workbox.registerRoute(/^https:\/\/fonts\.googleapis\.com\/.*/i, new workbox.CacheFirst({
     "cacheName": "google-fonts-cache",
     plugins: [new workbox.ExpirationPlugin({

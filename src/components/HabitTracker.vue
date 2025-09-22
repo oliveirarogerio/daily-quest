@@ -11,22 +11,27 @@
  * - Integration with player progression system
  * - Event handling for touch gestures
  */
-import { ref, onMounted, reactive } from 'vue';
-import { useHabits } from '../composables/useHabits';
-import { useTimer } from '../composables/useTimer';
-import { usePlayer } from '../composables/usePlayer';
-import { useNotification } from '../composables/useNotification';
-import GameStatusBar from './GameStatusBar.vue';
-import QuestList from './QuestList.vue';
-import TimerModal from './TimerModal.vue';
-import AddQuestModal from './AddQuestModal.vue';
-import PullToRefresh from './PullToRefresh.vue';
-import BottomNavigation from './BottomNavigation.vue';
-import Auth from './Auth.vue';
-import type { Habit } from '../types/habit';
+import { onMounted, ref } from 'vue'
+import { useHabits } from '../composables/useHabits'
+import { useNotification } from '../composables/useNotification'
+import { usePlayer } from '../composables/usePlayer'
+import { useTimer } from '../composables/useTimer'
+import { useTutorial } from '../composables/useTutorial'
+import type { Habit } from '../types/habit'
+import AddQuestModal from './AddQuestModal.vue'
+import Auth from './Auth.vue'
+import BottomNavigation from './BottomNavigation.vue'
+import GameStatusBar from './GameStatusBar.vue'
+import Missions from './Missions.vue'
+import PullToRefresh from './PullToRefresh.vue'
+import QuestList from './QuestList.vue'
+import Robby3D from './Robby3D.vue'
+import ThemeSettings from './ThemeSettings.vue'
+import TimerModal from './TimerModal.vue'
+import TutorialOverlay from './TutorialOverlay.vue'
 
 // Import composable methods with destructuring
-const { habits, addHabit, removeHabit, toggleHabitCompletion, refreshHabits } = useHabits();
+const { habits, addHabit, removeHabit, toggleHabitCompletion, refreshHabits } = useHabits()
 const {
   timerState,
   startTimer,
@@ -35,28 +40,32 @@ const {
   setTimerMode,
   setTimer,
   resetTimer,
-  selectHabit
-} = useTimer();
-const {
-  loadPlayerState,
-  addXP,
-  removeXP,
-  triggerXPAnimation,
-  isLoading: playerLoading
-} = usePlayer();
-const { displayNotification } = useNotification();
+  selectHabit,
+} = useTimer()
+const { loadPlayerState, addXP, removeXP, triggerXPAnimation } = usePlayer()
+const { displayNotification } = useNotification()
+const { startTutorial, isTutorialActive } = useTutorial()
 
 // Modal states
-const showTimerModal = ref(false);
-const showAddModal = ref(false);
-const showLoginModal = ref(false);
-const selectedHabit = ref<Habit | null>(null);
+const showTimerModal = ref(false)
+const showAddModal = ref(false)
+const showLoginModal = ref(false)
+const showSettingsModal = ref(false)
+const showMissions = ref(false)
+const selectedHabit = ref<Habit | null>(null)
+
+// Robby mascot states
+const robbyVariant = ref<'default' | 'celebrating' | 'encouraging' | 'sleeping'>('encouraging')
+const showCelebration = ref(false)
+
+// Tutorial states
+const showTutorialButton = ref(true)
 
 // Pull-to-refresh state management
-const pullOffset = ref(0);
-const refreshThreshold = 100;
-const isRefreshing = ref(false);
-let touchStartY = 0;
+const pullOffset = ref(0)
+const refreshThreshold = 100
+const isRefreshing = ref(false)
+let touchStartY = 0
 
 /**
  * Handles the start of a touch event for pull-to-refresh functionality.
@@ -65,8 +74,8 @@ let touchStartY = 0;
  * @param {TouchEvent} event - The touch event
  */
 const handleTouchStart = (event: TouchEvent) => {
-  touchStartY = event.touches[0].clientY;
-};
+  touchStartY = event.touches[0].clientY
+}
 
 /**
  * Handles touch movement for pull-to-refresh functionality.
@@ -76,14 +85,14 @@ const handleTouchStart = (event: TouchEvent) => {
  * @param {TouchEvent} event - The touch move event
  */
 const handleTouchMove = (event: TouchEvent) => {
-  const touchY = event.touches[0].clientY;
-  const diff = touchY - touchStartY;
+  const touchY = event.touches[0].clientY
+  const diff = touchY - touchStartY
 
   if (diff > 0 && window.scrollY === 0) {
-    pullOffset.value = Math.min(diff * 0.5, refreshThreshold);
-    event.preventDefault();
+    pullOffset.value = Math.min(diff * 0.5, refreshThreshold)
+    event.preventDefault()
   }
-};
+}
 
 /**
  * Handles the end of a touch event for pull-to-refresh.
@@ -92,16 +101,16 @@ const handleTouchMove = (event: TouchEvent) => {
  */
 const handleTouchEnd = async () => {
   if (pullOffset.value >= refreshThreshold) {
-    isRefreshing.value = true;
-    await refreshHabits();
-    isRefreshing.value = false;
+    isRefreshing.value = true
+    await refreshHabits()
+    isRefreshing.value = false
   }
-  pullOffset.value = 0;
-};
+  pullOffset.value = 0
+}
 
 // Modal touch gesture management
-const modalSwipeOffset = ref(0);
-let modalTouchStartY = 0;
+const modalSwipeOffset = ref(0)
+let modalTouchStartY = 0
 
 /**
  * Handles touch start events on modals for swipe-to-dismiss gesture.
@@ -110,8 +119,8 @@ let modalTouchStartY = 0;
  * @param {TouchEvent} event - The touch start event
  */
 const handleModalTouchStart = (event: TouchEvent) => {
-  modalTouchStartY = event.touches[0].clientY;
-};
+  modalTouchStartY = event.touches[0].clientY
+}
 
 /**
  * Handles touch move events on modals for swipe-to-dismiss gesture.
@@ -120,22 +129,21 @@ const handleModalTouchStart = (event: TouchEvent) => {
  * @param {TouchEvent} event - The touch move event
  */
 const handleModalTouchMove = (event: TouchEvent) => {
-  const touchY = event.touches[0].clientY;
-  const diff = touchY - modalTouchStartY;
+  const touchY = event.touches[0].clientY
+  const diff = touchY - modalTouchStartY
 
   if (diff > 0) {
-    modalSwipeOffset.value = diff;
-    event.preventDefault();
+    modalSwipeOffset.value = diff
+    event.preventDefault()
   }
-};
-
+}
 
 const handleModalTouchEnd = () => {
   if (modalSwipeOffset.value > 100) {
-    closeModals();
+    closeModals()
   }
-  modalSwipeOffset.value = 0;
-};
+  modalSwipeOffset.value = 0
+}
 
 /**
  * Opens the timer modal for a specific habit.
@@ -144,37 +152,46 @@ const handleModalTouchEnd = () => {
  * @param {Habit} habit - The habit to associate with the timer
  */
 const openTimerModal = (habit: Habit) => {
-  selectedHabit.value = habit;
-  selectHabit(habit);
-  showTimerModal.value = true;
-};
+  selectedHabit.value = habit
+  selectHabit(habit)
+  showTimerModal.value = true
+}
 
 /**
  * Opens the modal for adding a new quest/habit.
  */
 const openAddModal = () => {
-  showAddModal.value = true;
-};
+  showAddModal.value = true
+}
 
 /**
  * Opens the login/authentication modal.
  */
 const openLoginModal = () => {
-  showLoginModal.value = true;
-};
+  showLoginModal.value = true
+}
+
+/**
+ * Opens the settings modal.
+ */
+const openSettingsModal = () => {
+  showSettingsModal.value = true
+}
 
 /**
  * Closes all modals and resets related state.
  * Pauses any active timer and clears selected habit.
  */
 const closeModals = () => {
-  showTimerModal.value = false;
-  showAddModal.value = false;
-  showLoginModal.value = false;
-  selectedHabit.value = null;
-  pauseTimer();
-  selectHabit(null);
-};
+  showTimerModal.value = false
+  showAddModal.value = false
+  showLoginModal.value = false
+  showSettingsModal.value = false
+  showMissions.value = false
+  selectedHabit.value = null
+  pauseTimer()
+  selectHabit(null)
+}
 
 /**
  * Handles the addition of a new habit from the AddQuestModal.
@@ -183,9 +200,9 @@ const closeModals = () => {
  * @param {string} name - The name of the new habit to add
  */
 const handleAddHabit = (name: string) => {
-  addHabit(name);
-  closeModals();
-};
+  addHabit(name)
+  closeModals()
+}
 
 /**
  * Handles toggling the completion state of a habit.
@@ -211,90 +228,129 @@ const handleAddHabit = (name: string) => {
  * @param {MouseEvent|TouchEvent} event - The event that triggered the toggle (for animation positioning)
  */
 const handleToggleHabit = async (habit: Habit, event?: MouseEvent | TouchEvent) => {
-  if (!habit) return;
+  if (!habit) return
 
   try {
     // Make sure player state is loaded before toggling habits
-    await loadPlayerState();
+    await loadPlayerState()
 
     // Toggle habit completion state
-    const xpChange = await toggleHabitCompletion(habit);
+    const xpChange = await toggleHabitCompletion(habit)
 
     // Handle XP change
     if (xpChange > 0) {
       // Get event coordinates for animation
-      let x = window.innerWidth / 2;
-      let y = window.innerHeight / 2;
+      let x = window.innerWidth / 2
+      let y = window.innerHeight / 2
 
       // Extract coordinates based on event type
       if (event) {
         if (event instanceof MouseEvent) {
-          x = event.clientX;
-          y = event.clientY;
+          x = event.clientX
+          y = event.clientY
         } else if (event instanceof TouchEvent && event.touches.length > 0) {
-          x = event.touches[0].clientX;
-          y = event.touches[0].clientY;
+          x = event.touches[0].clientX
+          y = event.touches[0].clientY
         }
       }
 
       // Trigger animation first
-      triggerXPAnimation(xpChange, 'habit', x, y);
+      triggerXPAnimation(xpChange, 'habit', x, y)
 
       // Add XP after a small delay to ensure animation is visible
-      await new Promise(resolve => setTimeout(resolve, 100));
-      await addXP(xpChange, 'habit', habit.streak);
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      await addXP(xpChange, 'habit', habit.streak)
 
       // Force UI updates
-      window.dispatchEvent(new CustomEvent('xp-updated', {
-        detail: { forceUpdate: true, timestamp: Date.now() }
-      }));
+      window.dispatchEvent(
+        new CustomEvent('xp-updated', {
+          detail: { forceUpdate: true, timestamp: Date.now() },
+        }),
+      )
+
+      // Trigger Robby celebration
+      robbyVariant.value = 'celebrating'
+      showCelebration.value = true
+      setTimeout(() => {
+        robbyVariant.value = 'encouraging'
+        showCelebration.value = false
+      }, 3000)
 
       // Show success notification
-      displayNotification(`+${xpChange} XP for completing ${habit.name}!`);
+      displayNotification(`+${xpChange} XP for completing ${habit.name}!`)
     } else if (xpChange < 0) {
       // For uncompleting, trigger the animation first for better feedback
-      let x = window.innerWidth / 2;
-      let y = window.innerHeight / 2;
+      let x = window.innerWidth / 2
+      let y = window.innerHeight / 2
 
       // Extract coordinates based on event type
       if (event) {
         if (event instanceof MouseEvent) {
-          x = event.clientX;
-          y = event.clientY;
+          x = event.clientX
+          y = event.clientY
         } else if (event instanceof TouchEvent && event.touches.length > 0) {
-          x = event.touches[0].clientX;
-          y = event.touches[0].clientY;
+          x = event.touches[0].clientX
+          y = event.touches[0].clientY
         }
       }
 
-      triggerXPAnimation(Math.abs(xpChange), 'habit', x, y);
+      triggerXPAnimation(Math.abs(xpChange), 'habit', x, y)
 
       // Small delay for animation
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100))
 
       // Handle uncompleting a habit
-      await removeXP(Math.abs(xpChange), `Uncompleted: ${habit.name}`);
+      await removeXP(Math.abs(xpChange), `Uncompleted: ${habit.name}`)
 
       // Force multiple UI update events to ensure reactivity across components
-      window.dispatchEvent(new CustomEvent('xp-updated', {
-        detail: { forceUpdate: true, timestamp: Date.now() }
-      }));
+      window.dispatchEvent(
+        new CustomEvent('xp-updated', {
+          detail: { forceUpdate: true, timestamp: Date.now() },
+        }),
+      )
 
       // Try another update after a bit more time for good measure
       setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('xp-updated-complete', {
-          detail: { timestamp: Date.now() }
-        }));
-      }, 200);
+        window.dispatchEvent(
+          new CustomEvent('xp-updated-complete', {
+            detail: { timestamp: Date.now() },
+          }),
+        )
+      }, 200)
 
       // Show notification
-      displayNotification(`-${Math.abs(xpChange)} XP from uncompleting ${habit.name}`);
+      displayNotification(`-${Math.abs(xpChange)} XP from uncompleting ${habit.name}`)
     }
   } catch (error) {
-    console.error('❌ [HabitTracker] Error toggling habit:', error);
-    displayNotification('Error updating habit. Please try again.');
+    console.error('❌ [HabitTracker] Error toggling habit:', error)
+    displayNotification('Erro ao atualizar missão. Tente novamente.')
   }
-};
+}
+
+// Tutorial functions
+const startWelcomeTutorial = () => {
+  startTutorial('welcome')
+}
+
+const startAddHabitTutorial = () => {
+  startTutorial('add-habit')
+}
+
+const startCompleteHabitTutorial = () => {
+  startTutorial('complete-habit')
+}
+
+const startTimerTutorial = () => {
+  startTutorial('timer')
+}
+
+const startLevelUpTutorial = () => {
+  startTutorial('level-up')
+}
+
+const startSettingsTutorial = () => {
+  startTutorial('settings')
+}
 
 // Bottom navigation event handlers
 
@@ -303,8 +359,8 @@ const handleToggleHabit = async (habit: Habit, event?: MouseEvent | TouchEvent) 
  * Opens the add quest modal.
  */
 const handleAddHabitFromNav = () => {
-  openAddModal();
-};
+  openAddModal()
+}
 
 /**
  * Handles the show timer button click from the BottomNavigation.
@@ -314,49 +370,75 @@ const handleAddHabitFromNav = () => {
 const handleShowTimer = () => {
   // If there are habits, select the first one for the timer
   if (habits.value.length > 0) {
-    openTimerModal(habits.value[0]);
+    openTimerModal(habits.value[0])
   } else {
-    displayNotification('Create a habit first to use the timer');
+    displayNotification('Crie uma missão primeiro para usar o timer')
   }
-};
+}
+
+/**
+ * Handles the show home button click from the BottomNavigation.
+ * Returns to the main habits view.
+ */
+const handleShowHome = () => {
+  showMissions.value = false
+}
+
+/**
+ * Handles the show missions button click from the BottomNavigation.
+ * Shows the Missions component.
+ */
+const handleShowMissions = () => {
+  showMissions.value = true
+}
 
 /**
  * Handles the show stats button click from the BottomNavigation.
  * Currently shows a placeholder notification.
  */
 const handleShowStats = () => {
-  displayNotification('Stats feature coming soon!');
-};
+  displayNotification('Recursos de estatísticas em breve!')
+}
 
 /**
  * Handles the show login button click from the BottomNavigation.
  * Opens the login modal.
  */
 const handleShowLogin = () => {
-  openLoginModal();
-};
+  openLoginModal()
+}
+
+/**
+ * Handles the show settings button click from the BottomNavigation.
+ * Opens the settings modal.
+ */
+const handleShowSettings = () => {
+  openSettingsModal()
+}
 
 /**
  * Component initialization on mount.
  * Loads player state and refreshes habits.
  */
+
 onMounted(async () => {
   try {
-    await loadPlayerState();
-    await refreshHabits();
+    await loadPlayerState()
+    await refreshHabits()
   } catch (error) {
-    console.error('❌ [HabitTracker] Error during initialization:', error);
-    displayNotification('Error loading data. Please refresh the page.');
+    console.error('❌ [HabitTracker] Error during initialization:', error)
+    displayNotification('Erro ao carregar dados. Atualize a página.')
   }
-});
+})
 </script>
 
 <template>
-  <div class="habit-tracker"
-       @touchstart="handleTouchStart"
-       @touchmove="handleTouchMove"
-       @touchend="handleTouchEnd">
-
+  <div
+    class="space-y-6"
+    @touchstart="handleTouchStart"
+    @touchmove="handleTouchMove"
+    @touchend="handleTouchEnd"
+  >
     <PullToRefresh
       :is-refreshing="isRefreshing"
       :pull-offset="pullOffset"
@@ -365,12 +447,30 @@ onMounted(async () => {
 
     <GameStatusBar />
 
+    <!-- Robby Mascot fixed at bottom right -->
+    <div class="fixed bottom-20 right-4 z-30">
+      <Robby3D :variant="robbyVariant" :animated="true" size="md" color-scheme="vibrant" />
+    </div>
+
+    <!-- Tutorial Button -->
+    <div v-if="showTutorialButton && !isTutorialActive" class="fixed top-4 right-4 z-30">
+      <button @click="startWelcomeTutorial" class="tutorial-start-btn" title="Iniciar tutorial">
+        🎓 Tutorial
+      </button>
+    </div>
+
+    <!-- Tutorial Overlay -->
+    <TutorialOverlay />
+
     <QuestList
+      v-if="!showMissions"
       :habits="habits"
       @toggle="handleToggleHabit"
       @remove="removeHabit"
       @timer="openTimerModal"
     />
+
+    <Missions v-if="showMissions" />
 
     <TimerModal
       v-if="showTimerModal && selectedHabit"
@@ -401,169 +501,83 @@ onMounted(async () => {
       @touch-end="handleModalTouchEnd"
     />
 
-    <div v-if="showLoginModal" class="auth-modal">
-      <Auth />
-      <button class="close-auth-btn" @click="closeModals">×</button>
+    <div
+      v-if="showLoginModal"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+    >
+      <div class="rounded-lg p-6 max-w-md w-full relative">
+        <Auth />
+        <button
+          class="absolute top-4 right-4 text-text-secondary hover:text-text-main text-2xl font-bold"
+          @click="closeModals"
+        >
+          ×
+        </button>
+      </div>
+    </div>
+
+    <div
+      v-if="showSettingsModal"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+    >
+      <div class="bg-surface-light rounded-lg p-6 max-w-md w-full relative">
+        <ThemeSettings />
+        <button
+          class="absolute top-4 right-4 text-text-secondary hover:text-text-main text-2xl font-bold"
+          @click="closeModals"
+        >
+          ×
+        </button>
+      </div>
     </div>
 
     <BottomNavigation
       @add-habit="handleAddHabitFromNav"
-      @show-timer="handleShowTimer"
-      @show-stats="handleShowStats"
+      @show-home="handleShowHome"
+      @show-missions="handleShowMissions"
+      @show-settings="handleShowSettings"
       @show-login="handleShowLogin"
     />
-
   </div>
 </template>
 
 <style scoped>
-.habit-tracker {
-  position: relative;
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 10px 8px;
-  min-height: 100vh;
-  overflow-x: hidden;
-  touch-action: manipulation;
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0));
-}
+/* Minimal custom styles - most styling handled by Tailwind */
 
-.add-button {
-  position: fixed;
-  bottom: 80px;
-  right: 16px;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
+.tutorial-start-btn {
   background: linear-gradient(135deg, #6a5acd, #9370db);
+  color: white;
   border: none;
-  color: #fff;
-  font-size: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  border-radius: 25px;
+  padding: 12px 20px;
+  font-weight: 600;
   cursor: pointer;
-  box-shadow:
-    0 4px 12px rgba(106, 90, 205, 0.3),
-    0 0 0 1px rgba(106, 90, 205, 0.2);
+  box-shadow: 0 4px 12px rgba(106, 90, 205, 0.3);
   transition: all 0.3s ease;
-  z-index: 100;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
+  font-size: 0.9rem;
+  animation: tutorial-pulse 2s infinite;
 }
 
-.add-button:hover,
-.add-button:active {
+.tutorial-start-btn:hover {
+  background: linear-gradient(135deg, #7b6dd4, #a387e0);
   transform: translateY(-2px);
-  box-shadow:
-    0 6px 16px rgba(106, 90, 205, 0.4),
-    0 0 0 1px rgba(106, 90, 205, 0.3);
+  box-shadow: 0 6px 16px rgba(106, 90, 205, 0.4);
 }
 
-.add-button:active {
-  transform: translateY(0);
-}
-
-.add-icon {
-  line-height: 1;
-}
-
-.habit-tracker > *:not(:first-child):not(.auth-modal) {
-  margin-bottom: 14px;
-}
-
-.auth-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(10, 10, 20, 0.95);
-  backdrop-filter: blur(10px);
-  z-index: 2000;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  overflow-y: auto;
-  padding-top: max(16px, env(safe-area-inset-top, 0));
-  padding-bottom: max(16px, env(safe-area-inset-bottom, 0));
-}
-
-.close-auth-btn {
-  position: absolute;
-  top: max(16px, env(safe-area-inset-top, 10px));
-  right: 16px;
-  background: none;
-  border: none;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 24px;
-  cursor: pointer;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: all 0.3s ease;
-  background: rgba(0, 0, 0, 0.3);
-  z-index: 2001;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
-
-.close-auth-btn:hover,
-.close-auth-btn:active {
-  color: #fff;
-  background: rgba(0, 0, 0, 0.5);
-}
-
-@media (min-width: 768px) {
-  .habit-tracker {
-    padding-bottom: 100px;
-    width: 90%;
-    max-width: 600px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+@keyframes tutorial-pulse {
+  0%,
+  100% {
+    box-shadow: 0 4px 12px rgba(106, 90, 205, 0.3);
   }
-
-  .habit-tracker > * {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .add-button {
-    bottom: 80px;
-    right: 20px;
-    width: 56px;
-    height: 56px;
-    font-size: 24px;
-  }
-
-  .auth-modal {
-    padding: 20px;
-  }
-
-  .close-auth-btn {
-    top: 20px;
-    right: 20px;
-    width: 40px;
-    height: 40px;
-  }
-
-  .habit-tracker > *:not(:first-child):not(.auth-modal) {
-    margin-bottom: 20px;
+  50% {
+    box-shadow: 0 4px 12px rgba(106, 90, 205, 0.6);
   }
 }
 
-@media (min-width: 1200px) {
-  .habit-tracker {
-    max-width: 700px;
+@media (max-width: 768px) {
+  .tutorial-start-btn {
+    padding: 10px 16px;
+    font-size: 0.85rem;
   }
 }
 </style>

@@ -206,13 +206,48 @@ The Daily Quest application uses the following Vue components to create an engag
   - `show`: Boolean to control visibility
 - **Dependencies**: None
 
+### Robby3D.vue
+
+**3D robot mascot component with vibrant color customization**.
+
+- **Purpose**: Displays an interactive 3D robot mascot with customizable colors and animations.
+- **Key Features**:
+  - Three.js-powered 3D rendering with GLB model support
+  - Multiple color schemes (default, vibrant, neon, pastel)
+  - Enhanced lighting system for vibrant colors
+  - Material enhancement for more vivid appearance
+  - Multiple animation variants (celebrating, encouraging, sleeping)
+  - Responsive sizing options
+  - Speech bubble system with contextual messages
+  - Fallback placeholder robot if model fails to load
+- **Emits**: None
+- **Props**:
+  - `size`: Robot size ('sm', 'md', 'lg', 'xl') - defaults to 'md'
+  - `variant`: Animation variant ('default', 'celebrating', 'encouraging', 'sleeping') - defaults to 'default'
+  - `animated`: Whether animations are enabled - defaults to true
+  - `colorScheme`: Color scheme ('default', 'vibrant', 'neon', 'pastel') - defaults to 'vibrant'
+- **Dependencies**:
+  - Three.js for 3D rendering
+  - GLTFLoader for model loading
+- **Usage Examples**:
+
+  ```vue
+  <!-- Basic usage with vibrant colors -->
+  <Robby3D variant="encouraging" color-scheme="vibrant" />
+
+  <!-- Neon theme for celebrations -->
+  <Robby3D variant="celebrating" color-scheme="neon" size="lg" />
+
+  <!-- Pastel theme for sleeping state -->
+  <Robby3D variant="sleeping" color-scheme="pastel" animated="false" />
+  ```
+
 ## Component Relationships
 
 The components in Daily Quest are structured in a hierarchical manner:
 
 1. **HabitTracker** serves as the main container component
 2. Inside HabitTracker, these components are rendered:
-
    - **GameStatusBar** (always visible)
    - **QuestList** (always visible)
    - **BottomNavigation** (always visible)

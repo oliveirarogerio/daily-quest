@@ -7,22 +7,19 @@
  * featuring a full-screen overlay animation with pulsing effect
  * for visual impact and automatic fade in/out.
  */
-import { useI18n } from '../composables/useI18n';
 
 /**
  * Component Props
  * @property {boolean} show - Controls the visibility of the animation
  */
 defineProps<{
-  show: boolean;
-}>();
-
-const { t } = useI18n();
+  show: boolean
+}>()
 </script>
 
 <template>
   <div class="level-up-animation" v-if="show">
-    <img src="../assets/level-up-effect.svg" :alt="t('levelUp.altText')" />
+    <img src="../assets/level-up-effect.svg" alt="Subiu de Nível" />
   </div>
 </template>
 
@@ -48,14 +45,26 @@ const { t } = useI18n();
 }
 
 @keyframes fadeInOut {
-  0% { opacity: 0; }
-  20% { opacity: 1; }
-  80% { opacity: 1; }
-  100% { opacity: 0; }
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 @keyframes pulse {
-  from { transform: scale(0.95); }
-  to { transform: scale(1.05); }
+  from {
+    transform: scale(0.95);
+  }
+  to {
+    transform: scale(1.05);
+  }
 }
 </style>

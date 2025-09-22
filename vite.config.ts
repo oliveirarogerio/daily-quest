@@ -1,12 +1,14 @@
-import { defineConfig } from 'vite'
+import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
-import vueDevTools from 'vite-plugin-vue-devtools'
+import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import vueDevTools from 'vite-plugin-vue-devtools'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     vue(),
+    tailwindcss(),
     vueDevTools(),
     VitePWA({
       registerType: 'autoUpdate',
@@ -15,9 +17,9 @@ export default defineConfig({
       },
       includeAssets: ['favicon.ico', 'favicon.svg', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
-        name: 'Daily Quest',
-        short_name: 'DailyQuest',
-        description: 'Level up your life, one quest at a time',
+        name: 'Missão Diária',
+        short_name: 'MissãoDiária',
+        description: 'Evolua sua vida, uma missão por vez',
         theme_color: '#6a5acd',
         background_color: '#0a0a14',
         display: 'standalone',
@@ -41,7 +43,29 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        navigateFallbackDenylist: [
+          /^\/__/,
+          /chrome-extension:/,
+          /moz-extension:/,
+          /safari-extension:/,
+        ],
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
+          {
+            urlPattern: ({ url }) => {
+              return (
+                url.protocol === 'chrome-extension:' ||
+                url.protocol === 'moz-extension:' ||
+                url.protocol === 'safari-extension:' ||
+                url.href.includes('chrome-extension://') ||
+                url.href.includes('moz-extension://') ||
+                url.href.includes('safari-extension://')
+              )
+            },
+            handler: 'NetworkOnly',
+          },
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: 'CacheFirst',
@@ -88,6 +112,7 @@ export default defineConfig({
   ],
 
   server: {
+    port: 3000,
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin',
       'Cross-Origin-Embedder-Policy': 'require-corp',
@@ -95,7 +120,7 @@ export default defineConfig({
     hmr: {
       protocol: 'ws',
       host: 'localhost',
-      port: 5173,
+      port: 3000,
     },
   },
   build: {

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 
 import { ref, computed } from 'vue';
-import { useI18n } from '../composables/useI18n';
 
 /**
  * Component Props
@@ -23,7 +22,6 @@ const emit = defineEmits<{
   (event: 'refresh'): void;
 }>();
 
-const { t } = useI18n();
 
 /**
  * Computed progress percentage (0-1) based on pull distance and threshold
@@ -46,7 +44,7 @@ const indicatorStyle = computed(() => ({
       <div class="indicator-content">
         <div class="refresh-icon">↻</div>
         <span class="refresh-text">
-          {{ isRefreshing ? t('actions.refreshing') : t('actions.pullToRefresh') }}
+          {{ isRefreshing ? 'Atualizando...' : 'Puxe para atualizar' }}
         </span>
       </div>
     </div>

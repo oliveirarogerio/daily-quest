@@ -1,195 +1,222 @@
 <script setup lang="ts">
-import { ref, watch, computed, onMounted, onUnmounted } from 'vue';
-import { useI18n } from '../composables/useI18n';
-import type { Habit, TimerMode } from '../types/habit';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import type { Habit, TimerMode } from '../types/habit'
+import Robby3D from './Robby3D.vue'
 
 const props = defineProps<{
-  habit: Habit;
-  isRunning: boolean;
-  mode: TimerMode;
-  formattedTime: string;
-  customMinutes: number;
-  swipeOffset: number;
-  completedSessions?: number;
-  pomodoroGoal?: number;
-}>();
+  habit: Habit
+  isRunning: boolean
+  mode: TimerMode
+  formattedTime: string
+  customMinutes: number
+  swipeOffset: number
+  completedSessions?: number
+  pomodoroGoal?: number
+}>()
 
 const emit = defineEmits<{
-  (e: 'close'): void;
-  (e: 'start'): void;
-  (e: 'pause'): void;
-  (e: 'stop'): void;
-  (e: 'setMode', mode: TimerMode): void;
-  (e: 'setCustomTime', minutes: number): void;
-  (e: 'touchStart', event: TouchEvent): void;
-  (e: 'touchMove', event: TouchEvent): void;
-  (e: 'touchEnd', event: TouchEvent): void;
-  (e: 'toggleAutoStart'): void;
-}>();
+  (e: 'close'): void
+  (e: 'start'): void
+  (e: 'pause'): void
+  (e: 'stop'): void
+  (e: 'setMode', mode: TimerMode): void
+  (e: 'setCustomTime', minutes: number): void
+  (e: 'touchStart', event: TouchEvent): void
+  (e: 'touchMove', event: TouchEvent): void
+  (e: 'touchEnd', event: TouchEvent): void
+  (e: 'toggleAutoStart'): void
+}>()
 
-const { t } = useI18n();
 
-const progress = ref(0);
-const totalDuration = ref(0); // Total duration in seconds
-const initialTime = ref(0); // Initial time in seconds
-const elapsedTime = ref(0); // Elapsed time in seconds
+const progress = ref(0)
+const robbyVariant = ref<'default' | 'celebrating' | 'encouraging' | 'sleeping'>('encouraging')
+const showRobby = ref(false)
+const totalDuration = ref(0) // Total duration in seconds
+const initialTime = ref(0) // Initial time in seconds
+const elapsedTime = ref(0) // Elapsed time in seconds
 
 // Timekeeper for progress calculation
-let progressInterval: number | null = null;
+let progressInterval: number | null = null
 
 // Pomodoro session indicators
 const sessions = computed(() => {
-  const total = props.pomodoroGoal || 4;
-  const completed = props.completedSessions || 0;
-  return Array(total).fill(0).map((_, index) => index < completed);
-});
+  const total = props.pomodoroGoal || 4
+  const completed = props.completedSessions || 0
+  return Array(total)
+    .fill(0)
+    .map((_, index) => index < completed)
+})
 
 // Format time for accessibility - "25 minutes" instead of "25:00"
 const accessibleTime = computed(() => {
-  const [mins, secs] = props.formattedTime.split(':');
-  const minutes = parseInt(mins);
-  const seconds = parseInt(secs);
+  const [mins, secs] = props.formattedTime.split(':')
+  const minutes = parseInt(mins)
+  const seconds = parseInt(secs)
 
   if (minutes === 0) {
-    return `${seconds} ${t('timer.seconds')}`;
+    return `${seconds} segundos`
   } else if (seconds === 0) {
-    return `${minutes} ${t('timer.minutes')}`;
+    return `${minutes} minutos`
   } else {
-    return `${minutes} ${t('timer.minutes')} ${seconds} ${t('timer.seconds')}`;
+    return `${minutes} minutos ${seconds} segundos`
   }
-});
+})
 
 // Mode descriptions for better UX
 const modeDescription = computed(() => {
   switch (props.mode) {
     case 'pomodoro':
-      return t('timer.pomodoroDescription');
+      return 'Foque na sua tarefa por 25 minutos'
     case 'shortBreak':
-      return t('timer.shortBreakDescription');
+      return 'Faça uma pausa de 5 minutos'
     case 'longBreak':
-      return t('timer.longBreakDescription');
+      return 'Faça uma pausa de 15 minutos'
     case 'custom':
-      return t('timer.customDescription');
+      return 'Defina sua própria duração'
     default:
-      return '';
+      return ''
   }
-});
+})
 
 // Set up duration when timer starts or mode changes
-watch(() => props.mode, () => {
-  setDuration();
-});
+watch(
+  () => props.mode,
+  () => {
+    setDuration()
+  },
+)
 
-watch(() => props.customMinutes, () => {
-  if (props.mode === 'custom') {
-    setDuration();
-  }
-});
+watch(
+  () => props.customMinutes,
+  () => {
+    if (props.mode === 'custom') {
+      setDuration()
+    }
+  },
+)
 
 // Watch for timer state changes
-watch(() => props.isRunning, (newVal) => {
-  if (newVal) {
-    startProgressTracking();
-  } else {
-    stopProgressTracking();
-  }
-});
+watch(
+  () => props.isRunning,
+  (newVal) => {
+    if (newVal) {
+      startProgressTracking()
+    } else {
+      stopProgressTracking()
+    }
+  },
+)
 
 // Calculate duration based on mode
 const setDuration = () => {
-  let minutes = 25; // Default
+  let minutes = 25 // Default
 
   if (props.mode === 'pomodoro') {
-    minutes = 25;
+    minutes = 25
   } else if (props.mode === 'shortBreak') {
-    minutes = 5;
+    minutes = 5
   } else if (props.mode === 'longBreak') {
-    minutes = 15;
+    minutes = 15
   } else if (props.mode === 'custom') {
-    minutes = props.customMinutes;
+    minutes = props.customMinutes
   }
 
-  totalDuration.value = minutes * 60; // Convert to seconds
-  initialTime.value = minutes * 60;
+  totalDuration.value = minutes * 60 // Convert to seconds
+  initialTime.value = minutes * 60
 
   // Reset elapsed time when changing modes
   if (!props.isRunning) {
-    elapsedTime.value = 0;
-    calculateProgress();
+    elapsedTime.value = 0
+    calculateProgress()
   }
-};
+}
 
 // Start tracking progress
 const startProgressTracking = () => {
   // Clear any existing interval
-  stopProgressTracking();
+  stopProgressTracking()
 
   // Create new interval
   progressInterval = window.setInterval(() => {
     // Calculate elapsed time based on difference between total and current time
-    const [mins, secs] = props.formattedTime.split(':');
-    const currentTimeInSeconds = parseInt(mins) * 60 + parseInt(secs);
-    elapsedTime.value = initialTime.value - currentTimeInSeconds;
+    const [mins, secs] = props.formattedTime.split(':')
+    const currentTimeInSeconds = parseInt(mins) * 60 + parseInt(secs)
+    elapsedTime.value = initialTime.value - currentTimeInSeconds
 
-    calculateProgress();
-  }, 1000);
-};
+    calculateProgress()
+  }, 1000)
+}
 
 // Stop tracking progress
 const stopProgressTracking = () => {
   if (progressInterval !== null) {
-    clearInterval(progressInterval);
-    progressInterval = null;
+    clearInterval(progressInterval)
+    progressInterval = null
   }
-};
+}
 
 // Calculate progress percentage
 const calculateProgress = () => {
   if (totalDuration.value > 0) {
-    progress.value = (elapsedTime.value / totalDuration.value) * 100;
+    progress.value = (elapsedTime.value / totalDuration.value) * 100
   } else {
-    progress.value = 0;
+    progress.value = 0
   }
-};
+}
 
 // Set up initial duration
 onMounted(() => {
-  setDuration();
-});
+  setDuration()
+  // Show Robby after a short delay
+  setTimeout(() => {
+    showRobby.value = true
+  }, 500)
+})
 
 // Clean up when component unmounts
 onUnmounted(() => {
-  stopProgressTracking();
-});
+  stopProgressTracking()
+})
 
 // Handle close with keyboard
 const handleKeyDown = (event: KeyboardEvent) => {
   if (event.key === 'Escape') {
-    emit('close');
+    emit('close')
   }
-};
+}
 
 // Add keyboard listener
 onMounted(() => {
-  window.addEventListener('keydown', handleKeyDown);
-});
+  window.addEventListener('keydown', handleKeyDown)
+})
 
 // Clean up keyboard listener
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeyDown);
-});
+  window.removeEventListener('keydown', handleKeyDown)
+})
 </script>
 
 <template>
   <div class="timer-modal">
-    <div class="timer-content"
-         :style="{ transform: `translateY(${swipeOffset}px)` }"
-         @touchstart="emit('touchStart', $event)"
-         @touchmove="emit('touchMove', $event)"
-         @touchend="emit('touchEnd', $event)">
+    <div
+      class="timer-content"
+      :style="{ transform: `translateY(${swipeOffset}px)` }"
+      @touchstart="emit('touchStart', $event)"
+      @touchmove="emit('touchMove', $event)"
+      @touchend="emit('touchEnd', $event)"
+    >
       <div class="timer-header">
         <h3>{{ habit.name }}</h3>
         <button class="close-button" @click="emit('close')" aria-label="Close timer">×</button>
+      </div>
+
+      <!-- Robby Mascot with speech bubble -->
+      <div v-if="showRobby" class="robby-container">
+        <Robby3D :variant="robbyVariant" :animated="true" size="sm" color-scheme="vibrant" />
+        <div class="speech-bubble">
+          <p v-if="!isRunning">⏰ Escolha um modo e inicie o timer!</p>
+          <p v-else>🎯 Foco total! Você consegue!</p>
+        </div>
       </div>
 
       <div class="timer-display" :class="{ 'timer-running': isRunning }">
@@ -198,19 +225,29 @@ onUnmounted(() => {
             <!-- Background circle -->
             <circle cx="100" cy="100" r="85" class="progress-ring-circle-bg" />
             <!-- Progress circle -->
-            <circle cx="100" cy="100" r="85"
-                    class="progress-ring-circle"
-                    :style="{
-                      strokeDashoffset: `${(100 - progress) * 5.34}`,
-                      strokeDasharray: '534',
-                      stroke: mode === 'pomodoro' ? '#ff6b6b' :
-                              mode === 'shortBreak' ? '#6a5acd' :
-                              mode === 'longBreak' ? '#3498db' :
-                              mode === 'custom' ? '#f9a826' : '#6a5acd'
-                    }" />
+            <circle
+              cx="100"
+              cy="100"
+              r="85"
+              class="progress-ring-circle"
+              :style="{
+                strokeDashoffset: `${(100 - progress) * 5.34}`,
+                strokeDasharray: '534',
+                stroke:
+                  mode === 'pomodoro'
+                    ? '#ff6b6b'
+                    : mode === 'shortBreak'
+                      ? '#6a5acd'
+                      : mode === 'longBreak'
+                        ? '#3498db'
+                        : mode === 'custom'
+                          ? '#f9a826'
+                          : '#6a5acd',
+              }"
+            />
           </svg>
           <div class="time" :class="`time-${mode}`">{{ formattedTime }}</div>
-          <div class="mode-label" aria-live="polite">{{ t(`timer.${mode}`) }}</div>
+          <div class="mode-label" aria-live="polite">{{ mode === 'pomodoro' ? 'Pomodoro' : mode === 'shortBreak' ? 'Pausa Curta' : mode === 'longBreak' ? 'Pausa Longa' : 'Tempo Personalizado' }}</div>
         </div>
       </div>
 
@@ -220,8 +257,8 @@ onUnmounted(() => {
           v-for="(completed, index) in sessions"
           :key="index"
           class="session-dot"
-          :class="{ 'completed': completed }"
-          :title="`${t('timer.session')} ${index + 1}${completed ? ' - ' + t('timer.completed') : ''}`"
+          :class="{ completed: completed }"
+          :title="`Sessão ${index + 1}${completed ? ' - Concluída' : ''}`"
         ></div>
       </div>
 
@@ -236,7 +273,7 @@ onUnmounted(() => {
           class="mode-button pomodoro"
           :aria-pressed="mode === 'pomodoro'"
         >
-          {{ t('timer.pomodoro') }}
+          Pomodoro
         </button>
         <button
           @click="emit('setMode', 'shortBreak')"
@@ -244,7 +281,7 @@ onUnmounted(() => {
           class="mode-button short-break"
           :aria-pressed="mode === 'shortBreak'"
         >
-          {{ t('timer.shortBreak') }}
+          Pausa Curta
         </button>
         <button
           @click="emit('setMode', 'longBreak')"
@@ -252,7 +289,7 @@ onUnmounted(() => {
           class="mode-button long-break"
           :aria-pressed="mode === 'longBreak'"
         >
-          {{ t('timer.longBreak') }}
+          Pausa Longa
         </button>
         <button
           @click="emit('setMode', 'custom')"
@@ -260,27 +297,31 @@ onUnmounted(() => {
           class="mode-button custom"
           :aria-pressed="mode === 'custom'"
         >
-          {{ t('timer.custom') }}
+          Tempo Personalizado
         </button>
       </div>
 
       <!-- Custom Time Input -->
       <div class="custom-time" v-if="mode === 'custom'">
-        <label for="customTime">{{ t('timer.customTime') }}</label>
+        <label for="customTime">Tempo Personalizado</label>
         <div class="custom-time-input">
           <button
             class="time-adjust-btn"
             @click="emit('setCustomTime', customMinutes - 1)"
             :disabled="customMinutes <= 1 || isRunning"
             aria-label="Decrease time"
-          >-</button>
+          >
+            -
+          </button>
           <input
             type="number"
             id="customTime"
             :value="customMinutes"
             min="1"
             max="180"
-            @change="(e: Event) => emit('setCustomTime', parseInt((e.target as HTMLInputElement).value))"
+            @change="
+              (e: Event) => emit('setCustomTime', parseInt((e.target as HTMLInputElement).value))
+            "
             :disabled="isRunning"
             aria-label="Custom time in minutes"
           />
@@ -289,8 +330,10 @@ onUnmounted(() => {
             @click="emit('setCustomTime', customMinutes + 1)"
             :disabled="customMinutes >= 180 || isRunning"
             aria-label="Increase time"
-          >+</button>
-          <span class="minutes-label">{{ t('timer.minutes') }}</span>
+          >
+            +
+          </button>
+          <span class="minutes-label">minutos</span>
         </div>
       </div>
 
@@ -302,30 +345,21 @@ onUnmounted(() => {
           aria-label="Start timer"
         >
           <span class="control-icon">▶</span>
-          {{ t('timer.start') }}
+          Iniciar
         </button>
-        <button
-          @click="emit('pause')"
-          class="control-button pause"
-          v-else
-          aria-label="Pause timer"
-        >
+        <button @click="emit('pause')" class="control-button pause" v-else aria-label="Pause timer">
           <span class="control-icon">⏸</span>
-          {{ t('timer.pause') }}
+          Pausar
         </button>
-        <button
-          @click="emit('stop')"
-          class="control-button stop"
-          aria-label="Reset timer"
-        >
+        <button @click="emit('stop')" class="control-button stop" aria-label="Reset timer">
           <span class="control-icon">⟲</span>
-          {{ t('timer.reset') }}
+          Reiniciar
         </button>
       </div>
 
       <div class="timer-info" v-if="habit.timeSpent">
         <div class="time-spent">
-          <span class="info-icon">⏱</span> {{ t('timer.timeSpent') }}: {{ habit.timeSpent }}h
+          <span class="info-icon">⏱</span> Tempo gasto: {{ habit.timeSpent }}h
         </div>
       </div>
     </div>
@@ -467,8 +501,12 @@ onUnmounted(() => {
 }
 
 @keyframes pulse {
-  from { opacity: 1; }
-  to { opacity: 0.7; }
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.7;
+  }
 }
 
 .session-indicators {
@@ -693,6 +731,78 @@ onUnmounted(() => {
 
   .control-button {
     padding: 16px;
+  }
+}
+
+/* Robby Mascot Styles */
+.robby-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: rgba(106, 90, 205, 0.1);
+  border-radius: 12px;
+  border: 1px solid rgba(106, 90, 205, 0.2);
+  animation: slide-in 0.5s ease-out;
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.speech-bubble {
+  flex: 1;
+  background: linear-gradient(135deg, #6a5acd, #9370db);
+  color: white;
+  padding: 10px 14px;
+  border-radius: 14px;
+  position: relative;
+  box-shadow: 0 4px 12px rgba(106, 90, 205, 0.3);
+}
+
+.speech-bubble::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-right: 8px solid #6a5acd;
+}
+
+.speech-bubble p {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+@media (max-width: 768px) {
+  .robby-container {
+    flex-direction: column;
+    text-align: center;
+    gap: 8px;
+  }
+
+  .speech-bubble::before {
+    left: 50%;
+    top: -8px;
+    transform: translateX(-50%);
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 8px solid #6a5acd;
+    border-bottom: none;
   }
 }
 </style>

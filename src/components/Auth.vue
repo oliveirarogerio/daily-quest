@@ -6,22 +6,20 @@
  * Handles user authentication with email/password and Google sign-in options,
  * form validation, error handling, user feedback, and new player creation in Firestore.
  */
-import { ref } from 'vue'
-import { useCurrentUser } from 'vuefire'
 import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
   GoogleAuthProvider,
-  signInWithPopup,
+  createUserWithEmailAndPassword,
   getAuth,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
 } from 'firebase/auth'
 import { doc, setDoc } from 'firebase/firestore'
-import { db } from '../firebase/config'
-import { useI18n } from '../composables/useI18n'
+import { ref } from 'vue'
+import { useCurrentUser } from 'vuefire'
 import { useNotification } from '../composables/useNotification'
+import { db } from '../firebase/config'
 
-const { t } = useI18n()
 const { displayNotification } = useNotification()
 const user = useCurrentUser() // Current user from VueFire
 
@@ -49,10 +47,9 @@ const handleAuth = async () => {
 
     // Validate password match for registration
     if (isRegistering.value && password.value !== confirmPassword.value) {
-      error.value = t('auth.passwordMismatch')
+      error.value = 'As senhas não coincidem'
       return
     }
-
 
     // Select appropriate auth function based on mode
     const authFunction = isRegistering.value
@@ -63,9 +60,9 @@ const handleAuth = async () => {
     // For new users, create player data in Firestore
     if (isRegistering.value) {
       await createPlayer(result)
-      displayNotification(t('auth.accountCreated') || 'Account created successfully!')
+      displayNotification('Conta criada com sucesso!')
     } else {
-      displayNotification(t('auth.loginSuccess') || 'Login successful!')
+      displayNotification('Login realizado com sucesso!')
     }
     resetForm()
   } catch (e: any) {
@@ -94,13 +91,12 @@ async function createPlayer(result: any) {
   })
 }
 
-
 const handleGoogleSignIn = async () => {
   try {
     isLoading.value = true
     const provider = new GoogleAuthProvider()
     await signInWithPopup(auth, provider)
-    displayNotification(t('auth.loginSuccess') || 'Login successful!')
+    displayNotification('Login realizado com sucesso!')
     resetForm()
   } catch (e: any) {
     console.error('Google Sign-In Error:', e)
@@ -129,7 +125,7 @@ const resetForm = () => {
  */
 const handleSignOut = () => {
   signOut(auth)
-  displayNotification(t('auth.logoutSuccess') || 'Logged out successfully!')
+  displayNotification('Logout realizado com sucesso!')
 }
 
 /**
@@ -149,44 +145,48 @@ const dismissAuth = () => {
       <div v-if="showAuthForm" class="auth-mobile">
         <div class="auth-content">
           <div class="auth-header">
-            <h2>{{ isRegistering ? t('auth.register') : t('auth.login') }}</h2>
+            <h2>{{ isRegistering ? 'Registrar' : 'Entrar' }}</h2>
             <p class="auth-subtitle">
-              {{ isRegistering ? t('auth.createAccount') : t('auth.welcomeBack') }}
+              {{
+                isRegistering
+                  ? 'Crie sua conta para acompanhar seu progresso'
+                  : 'Bem-vindo de volta! Continue sua jornada'
+              }}
             </p>
           </div>
 
           <form @submit.prevent="handleAuth" class="auth-form">
             <div v-if="isRegistering" class="form-group">
-              <label for="name">{{ t('auth.name') }}</label>
+              <label for="name">Nome</label>
               <input
                 id="name"
                 v-model="name"
                 type="text"
-                :placeholder="t('auth.namePlaceholder')"
+                placeholder="Digite seu nome"
                 required
                 :disabled="isLoading"
               />
             </div>
 
             <div class="form-group">
-              <label for="email">{{ t('auth.email') }}</label>
+              <label for="email">Email</label>
               <input
                 id="email"
                 v-model="email"
                 type="email"
-                :placeholder="t('auth.emailPlaceholder')"
+                placeholder="Digite seu email"
                 required
                 :disabled="isLoading"
               />
             </div>
 
             <div class="form-group">
-              <label for="password">{{ t('auth.password') }}</label>
+              <label for="password">Senha</label>
               <input
                 id="password"
                 v-model="password"
                 type="password"
-                :placeholder="t('auth.passwordPlaceholder')"
+                placeholder="Digite sua senha"
                 required
                 :disabled="isLoading"
                 minlength="6"
@@ -194,12 +194,12 @@ const dismissAuth = () => {
             </div>
 
             <div v-if="isRegistering" class="form-group">
-              <label for="confirmPassword">{{ t('auth.confirmPassword') }}</label>
+              <label for="confirmPassword">Confirmar Senha</label>
               <input
                 id="confirmPassword"
                 v-model="confirmPassword"
                 type="password"
-                :placeholder="t('auth.confirmPasswordPlaceholder')"
+                placeholder="Digite sua senha novamente"
                 required
                 :disabled="isLoading"
                 minlength="6"
@@ -209,17 +209,11 @@ const dismissAuth = () => {
             <p v-if="error" class="error">{{ error }}</p>
 
             <button type="submit" class="primary-btn" :disabled="isLoading">
-              {{
-                isLoading
-                  ? t('auth.processing')
-                  : isRegistering
-                    ? t('auth.register')
-                    : t('auth.login')
-              }}
+              {{ isLoading ? 'Processando...' : isRegistering ? 'Registrar' : 'Entrar' }}
             </button>
 
             <div class="divider">
-              <span>{{ t('auth.or') }}</span>
+              <span>ou</span>
             </div>
 
             <button
@@ -229,18 +223,18 @@ const dismissAuth = () => {
               :disabled="isLoading"
             >
               <img src="../assets/google-icon.svg" alt="Google" class="google-icon" />
-              {{ t('auth.continueWithGoogle') }}
+              Continuar com Google
             </button>
 
             <p class="toggle-text">
-              {{ isRegistering ? t('auth.alreadyHaveAccount') : t('auth.noAccount') }}
+              {{ isRegistering ? 'Já tem uma conta?' : 'Não tem uma conta?' }}
               <button
                 type="button"
                 class="toggle-btn"
                 @click="isRegistering = !isRegistering"
                 :disabled="isLoading"
               >
-                {{ isRegistering ? t('auth.login') : t('auth.register') }}
+                {{ isRegistering ? 'Entrar' : 'Registrar' }}
               </button>
             </p>
           </form>
@@ -258,7 +252,7 @@ const dismissAuth = () => {
       </div>
       <div class="user-details">
         <p class="user-name">{{ user.displayName || user.email }}</p>
-        <button class="signout-btn" @click="handleSignOut">{{ t('auth.signOut') }}</button>
+        <button class="signout-btn" @click="handleSignOut">Sair</button>
       </div>
     </div>
   </div>
@@ -275,7 +269,6 @@ const dismissAuth = () => {
 }
 
 .user-info {
-  background: linear-gradient(135deg, rgba(28, 28, 45, 0.95), rgba(20, 20, 35, 0.95));
   border: 1px solid rgba(106, 90, 205, 0.3);
   border-radius: 12px;
   padding: 20px;
@@ -297,9 +290,7 @@ const dismissAuth = () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background:
-    linear-gradient(45deg, transparent 45%, rgba(106, 90, 205, 0.1) 50%, transparent 55%),
-    linear-gradient(-45deg, transparent 45%, rgba(106, 90, 205, 0.1) 50%, transparent 55%);
+
   background-size: 300% 300%;
   animation: gradientFlow 3s ease infinite;
   pointer-events: none;
@@ -322,8 +313,13 @@ const dismissAuth = () => {
 }
 
 @keyframes gradientFlow {
-  0%, 100% { background-position: 0% 0%; }
-  50% { background-position: 100% 100%; }
+  0%,
+  100% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
 }
 
 .user-details {
@@ -397,8 +393,12 @@ const dismissAuth = () => {
 }
 
 @keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 .auth-header {
@@ -474,12 +474,7 @@ const dismissAuth = () => {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.2),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
   transition: 0.5s;
 }
 

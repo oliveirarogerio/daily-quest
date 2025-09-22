@@ -1,4 +1,4 @@
-import { initializeApp } from 'firebase/app'
+import { getApps, initializeApp } from 'firebase/app'
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -10,5 +10,5 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 }
 
-// Initialize Firebase app
-export const app = initializeApp(firebaseConfig)
+// Initialize Firebase app only if it hasn't been initialized already
+export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
