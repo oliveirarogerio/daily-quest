@@ -268,8 +268,8 @@ const handleTouchEnd = async (event: TouchEvent) => {
               />
             </svg>
           </div>
-          <h3 class="text-lg font-medium text-slate-600 mb-2">No tasks yet</h3>
-          <p class="text-slate-500 text-sm">Add your first habit to get started</p>
+          <h3 class="text-lg font-medium text-slate-600 mb-2">Nenhuma missão encontrada</h3>
+          <p class="text-slate-500 text-sm">Adicione sua primeira missão para começar</p>
         </div>
       </div>
     </div>
